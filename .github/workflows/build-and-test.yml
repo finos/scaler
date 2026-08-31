@@ -136,3 +136,85 @@ jobs:
         env:
           RUN_JUPYTERLITE_TEST: '1'
         run: python -m unittest tests.wasm.test_jupyterlite -v
+
+  kubernetes-integration-test:
+    name: Kubernetes Integration Tests (KinD)
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: ./.github/actions/setup-env
+        with:
+          os: ${{ runner.os }}
+          python-version: '3.10'
+
+      - uses: ./.github/actions/3rd-party-libraries-download
+        with:
+          os: ${{ runner.os }}
+
+      - uses: ./.github/actions/3rd-party-libraries-compile
+        with:
+          os: ${{ runner.os }}
+
+      - uses: ./.github/actions/3rd-party-libraries-install
+        with:
+          os: ${{ runner.os }}
+
+      - uses: ./.github/actions/compile-libraries
+        with:
+          os: ${{ runner.os }}
+
+      - name: Build and install scaler wheel
+        run: |
+          uv pip install --system build
+          python -m build --wheel
+          wheel_file=$(ls dist/*.whl | head -n 1)
+          uv pip install --system "${wheel_file}[kubernetes]"
+
+      - name: Install KinD
+        run: |
+          mkdir -p "${RUNNER_TEMP}/bin"
+          curl -Lo "${RUNNER_TEMP}/bin/kind" \
+            https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
+          chmod +x "${RUNNER_TEMP}/bin/kind"
+          echo "${RUNNER_TEMP}/bin" >> "$GITHUB_PATH"
+          "${RUNNER_TEMP}/bin/kind" version
+
+      - name: Install kubectl
+        run: |
+          curl -Lo "${RUNNER_TEMP}/bin/kubectl" \
+            "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x "${RUNNER_TEMP}/bin/kubectl"
+          kubectl version --client
+
+      - name: Build worker container image
+        run: |
+          docker build \
+            --file docker/Dockerfile \
+            --tag scaler-worker:kind-test \
+            .
+
+      - name: Run KinD integration tests
+        run: |
+          chmod +x scripts/kind-test.sh
+          ./scripts/kind-test.sh --no-build
+        env:
+          SCALER_KIND_CLUSTER: scaler-ci
+          SCALER_KIND_IMAGE: scaler-worker:kind-test
+          SCALER_KIND_NAMESPACE: scaler-test
+
+      - name: Dump pod logs on failure
+        if: failure()
+        run: |
+          KUBECONFIG="/tmp/scaler-kind-scaler-ci-$(id -u).kubeconfig"
+          echo "=== Pods ===" && kubectl --kubeconfig "$KUBECONFIG" get pods -n scaler-test -o wide || true
+          echo "=== Logs ===" && kubectl --kubeconfig "$KUBECONFIG" logs -n scaler-test -l app=scaler-worker --tail=100 || true
+          echo "=== Events ===" && kubectl --kubeconfig "$KUBECONFIG" get events -n scaler-test --sort-by='.lastTimestamp' || true

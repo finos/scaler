@@ -9,6 +9,7 @@ from scaler.config.config_class import ConfigClass
 from scaler.config.loading import _load_toml
 from scaler.config.section.aws_hpc_worker_manager import AWSBatchWorkerManagerConfig
 from scaler.config.section.ecs_worker_manager import ECSWorkerManagerConfig
+from scaler.config.section.kubernetes_worker_manager import KubernetesWorkerManagerConfig
 from scaler.config.section.native_worker_manager import NativeWorkerManagerConfig
 from scaler.config.section.oci_hpc_worker_manager import OCIHPCWorkerManagerConfig
 from scaler.config.section.oci_raw_worker_manager import OCIRawWorkerManagerConfig
@@ -25,6 +26,7 @@ _AnyWorkerManagerConfig = Union[
     ORBAWSEC2WorkerManagerConfig,
     OCIRawWorkerManagerConfig,
     OCIHPCWorkerManagerConfig,
+    KubernetesWorkerManagerConfig,
 ]
 
 _TYPE_MAP: Dict[str, Type[ConfigClass]] = {
@@ -35,6 +37,7 @@ _TYPE_MAP: Dict[str, Type[ConfigClass]] = {
     ORBAWSEC2WorkerManagerConfig._tag: ORBAWSEC2WorkerManagerConfig,
     OCIRawWorkerManagerConfig._tag: OCIRawWorkerManagerConfig,
     OCIHPCWorkerManagerConfig._tag: OCIHPCWorkerManagerConfig,
+    KubernetesWorkerManagerConfig._tag: KubernetesWorkerManagerConfig,
 }
 
 
@@ -126,6 +129,10 @@ def main() -> None:
         from scaler.worker_manager_adapter.oci_hpc.worker_manager import OCIHPCWorkerManager
 
         OCIHPCWorkerManager(wm_config).run()
+    elif isinstance(wm_config, KubernetesWorkerManagerConfig):
+        from scaler.worker_manager_adapter.kubernetes.worker_manager import KubernetesWorkerManager
+
+        KubernetesWorkerManager(wm_config).run()
 
 
 if __name__ == "__main__":
