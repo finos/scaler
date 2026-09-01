@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import tblib.pickling_support
 
@@ -38,7 +38,7 @@ class VanillaProcessorManager(ProcessorManager):
         garbage_collect_interval_seconds: int,
         trim_memory_threshold_bytes: int,
         hard_processor_suspend: bool,
-        logging_paths: Tuple[str, ...],
+        logging_paths: tuple[str, ...],
         logging_level: str,
         security_config: Optional[SecurityConfig] = None,
     ):
@@ -65,8 +65,8 @@ class VanillaProcessorManager(ProcessorManager):
         self._address_internal: AddressConfig = address_internal
 
         self._current_holder: Optional[ProcessorHolder] = None
-        self._suspended_holders_by_task_id: Dict[bytes, ProcessorHolder] = {}
-        self._holders_by_processor_id: Dict[ProcessorID, ProcessorHolder] = {}
+        self._suspended_holders_by_task_id: dict[bytes, ProcessorHolder] = {}
+        self._holders_by_processor_id: dict[ProcessorID, ProcessorHolder] = {}
 
         self._can_accept_task_lock: asyncio.Lock = asyncio.Lock()
 
@@ -329,7 +329,7 @@ class VanillaProcessorManager(ProcessorManager):
         else:
             return task.taskId
 
-    def processors(self) -> List[ProcessorHolder]:
+    def processors(self) -> list[ProcessorHolder]:
         return list(self._holders_by_processor_id.values())
 
     def num_suspended_processors(self) -> int:

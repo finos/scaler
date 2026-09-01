@@ -1,5 +1,5 @@
 import abc
-from typing import List, Optional
+from typing import Optional
 
 from scaler.config.types.address import AddressConfig
 from scaler.protocol.capnp import (
@@ -111,7 +111,7 @@ class ProcessorManager(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def processors(self) -> List[ProcessorHolder]:
+    def processors(self) -> list[ProcessorHolder]:
         raise NotImplementedError()
 
     @abc.abstractmethod

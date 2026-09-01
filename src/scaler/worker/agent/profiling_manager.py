@@ -1,7 +1,7 @@
 import dataclasses
 import logging
 import time
-from typing import Dict, Optional
+from typing import Optional
 
 import psutil
 
@@ -27,7 +27,7 @@ class _ProcessProfiler:
 
 class VanillaProfilingManager(ProfilingManager, Looper):
     def __init__(self):
-        self._process_profiler_by_pid: Dict[int, _ProcessProfiler] = {}
+        self._process_profiler_by_pid: dict[int, _ProcessProfiler] = {}
 
     def on_process_start(self, pid: int):
         if pid in self._process_profiler_by_pid:

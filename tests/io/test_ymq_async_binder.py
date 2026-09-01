@@ -9,7 +9,6 @@ shutdown path is the one that relies on it. See ``tests/worker/test_worker.py`` 
 
 import asyncio
 import unittest
-from typing import List, Tuple
 
 from scaler.config.types.address import AddressConfig
 from scaler.io.utility import deserialize
@@ -20,7 +19,7 @@ from scaler.protocol.capnp import BaseMessage, ClientDisconnect
 
 class TestYMQAsyncBinderSend(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        self._received: List[Tuple[bytes, BaseMessage]] = []
+        self._received: list[tuple[bytes, BaseMessage]] = []
 
         self._context = IOContext()
         self._binder = YMQAsyncBinder(self._context, identity=b"binder-under-test", callback=self._on_receive)

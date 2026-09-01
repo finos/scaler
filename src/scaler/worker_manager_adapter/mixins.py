@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Tuple
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from scaler.protocol.capnp import ProcessorStatus, Task, TaskCancel
 from scaler.utility.identifiers import TaskID
 
-TaskDeserializer = Callable[[Task], Awaitable[Tuple[Any, List[Any]]]]
+TaskDeserializer = Callable[[Task], Awaitable[tuple[Any, list[Any]]]]
 
 if TYPE_CHECKING:
     from scaler.protocol.capnp import WorkerManagerCommand
@@ -19,12 +19,12 @@ class ProcessorStatusProvider(ABC):
     def set_task_manager(self, task_manager: TaskManager) -> None: ...
 
     @abstractmethod
-    def get_processor_statuses(self) -> List[ProcessorStatus]: ...
+    def get_processor_statuses(self) -> list[ProcessorStatus]: ...
 
 
 class TaskInputLoader(ABC):
     @abstractmethod
-    async def load_task_inputs(self, task: Task) -> Tuple[Any, List[Any]]: ...
+    async def load_task_inputs(self, task: Task) -> tuple[Any, list[Any]]: ...
 
     @abstractmethod
     def register(self, load_task_inputs: TaskDeserializer) -> None: ...
@@ -58,7 +58,7 @@ class DeclarativeWorkerProvisioner(ABC):
 
     @abstractmethod
     async def set_desired_task_concurrency(
-        self, requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
+        self, requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
     ) -> None: ...
 
     @abstractmethod

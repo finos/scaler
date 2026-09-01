@@ -1,4 +1,4 @@
-from typing import Optional, Set
+from typing import Optional
 
 from scaler.client.agent.future_manager import ClientFutureManager
 from scaler.client.agent.mixins import ObjectManager, TaskManager
@@ -8,7 +8,7 @@ from scaler.protocol.capnp import GraphTask, Task, TaskCancel, TaskCancelConfirm
 
 class ClientTaskManager(TaskManager):
     def __init__(self):
-        self._task_ids: Set[bytes] = set()
+        self._task_ids: set[bytes] = set()
 
         self._connector_external: Optional[AsyncConnector] = None
         self._object_manager: Optional[ObjectManager] = None

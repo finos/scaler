@@ -12,7 +12,7 @@ _faulthandler_file: typing.Optional[typing.IO] = None
 
 
 def bootstrap_process(
-    log_paths: typing.Tuple[str, ...] = DEFAULT_LOGGING_PATHS,
+    log_paths: tuple[str, ...] = DEFAULT_LOGGING_PATHS,
     logging_config_file: typing.Optional[str] = None,
     logging_level: str = LoggingLevel.INFO.name,
     process_name: str = "scaler",

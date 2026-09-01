@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import List, Optional
+from typing import Optional
 
 from scaler.config.defaults import CAPNP_DATA_SIZE_LIMIT, CAPNP_MESSAGE_SIZE_LIMIT
 from scaler.protocol.capnp import BaseMessage, Message
@@ -37,10 +37,10 @@ def serialize(message: BaseMessage) -> bytes:
     return payload.to_bytes()
 
 
-def chunk_to_list_of_bytes(data: bytes) -> List[bytes]:
+def chunk_to_list_of_bytes(data: bytes) -> list[bytes]:
     # TODO: change to list of memoryview when capnp can support memoryview
     return [data[i : i + CAPNP_DATA_SIZE_LIMIT] for i in range(0, len(data), CAPNP_DATA_SIZE_LIMIT)]
 
 
-def concat_list_of_bytes(data: List[bytes]) -> bytes:
+def concat_list_of_bytes(data: list[bytes]) -> bytes:
     return b"".join(data)

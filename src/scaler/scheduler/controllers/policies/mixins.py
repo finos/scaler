@@ -1,5 +1,5 @@
 import abc
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 from scaler.protocol.capnp import ScalingManagerStatus, Task, WorkerManagerCommand, WorkerManagerHeartbeat
 from scaler.scheduler.controllers.policies.simple_policy.scaling.types import WorkerManagerSnapshot
@@ -9,15 +9,15 @@ from scaler.utility.snapshot import InformationSnapshot
 
 class ScalerPolicy(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def add_worker(self, worker: WorkerID, capabilities: Dict[str, int], queue_size: int) -> bool:
+    def add_worker(self, worker: WorkerID, capabilities: dict[str, int], queue_size: int) -> bool:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def remove_worker(self, worker: WorkerID) -> List[TaskID]:
+    def remove_worker(self, worker: WorkerID) -> list[TaskID]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_worker_ids(self) -> Set[WorkerID]:
+    def get_worker_ids(self) -> set[WorkerID]:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -25,7 +25,7 @@ class ScalerPolicy(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def balance(self) -> Dict[WorkerID, List[TaskID]]:
+    def balance(self) -> dict[WorkerID, list[TaskID]]:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -37,11 +37,11 @@ class ScalerPolicy(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def has_available_worker(self, capabilities: Optional[Dict[str, int]] = None) -> bool:
+    def has_available_worker(self, capabilities: Optional[dict[str, int]] = None) -> bool:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def statistics(self) -> Dict:
+    def statistics(self) -> dict:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -49,11 +49,11 @@ class ScalerPolicy(metaclass=abc.ABCMeta):
         self,
         information_snapshot: InformationSnapshot,
         worker_manager_heartbeat: WorkerManagerHeartbeat,
-        managed_worker_ids: List[WorkerID],
-        worker_manager_snapshots: Dict[bytes, WorkerManagerSnapshot],
-    ) -> List[WorkerManagerCommand]:
+        managed_worker_ids: list[WorkerID],
+        worker_manager_snapshots: dict[bytes, WorkerManagerSnapshot],
+    ) -> list[WorkerManagerCommand]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_scaling_status(self, managed_workers: Dict[bytes, List[WorkerID]]) -> ScalingManagerStatus:
+    def get_scaling_status(self, managed_workers: dict[bytes, list[WorkerID]]) -> ScalingManagerStatus:
         raise NotImplementedError()

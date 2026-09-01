@@ -1,7 +1,7 @@
 # PYTHON_ARGCOMPLETE_OK
 import curses
 import functools
-from typing import Dict, List, Literal, Union
+from typing import Literal, Union
 
 from scaler.config.section.top import TopConfig
 from scaler.io.network_backends import get_network_backend_from_env
@@ -30,7 +30,7 @@ SORT_BY_OPTIONS = {
     ord("l"): "lag",
 }
 
-SORT_BY_STATE: Dict[str, Union[str, bool]] = {"sort_by": "cpu", "sort_by_previous": "cpu", "sort_reverse": True}
+SORT_BY_STATE: dict[str, Union[str, bool]] = {"sort_by": "cpu", "sort_by_previous": "cpu", "sort_reverse": True}
 
 
 def main():
@@ -171,7 +171,7 @@ def __generate_keyword_data(title, data, key_col_length: int = 0, format_integer
     return table
 
 
-def __generate_worker_manager_table(wm_data: List[Dict], manager_length: int, worker_length: int) -> List[List[str]]:
+def __generate_worker_manager_table(wm_data: list[dict], manager_length: int, worker_length: int) -> list[list[str]]:
     if not wm_data:
         headers = [["No workers"]]
         return headers
@@ -214,7 +214,7 @@ def __print_table(screen, line_number, data, padding: int = 1):
     return line_number + len(data), sum(col_widths) + (padding * len(col_widths))
 
 
-def __merge_tables(left: List[List], right: List[List], padding: str = "") -> List[List]:
+def __merge_tables(left: list[list], right: list[list], padding: str = "") -> list[list]:
     if not left:
         return right
 
@@ -242,7 +242,7 @@ def __merge_tables(left: List[List], right: List[List], padding: str = "") -> Li
     return result
 
 
-def __concat_tables(up: List[List], down: List[List], padding: int = 1) -> List[List]:
+def __concat_tables(up: list[list], down: list[list], padding: int = 1) -> list[list]:
     max_cols = max([len(row) for row in up] + [len(row) for row in down])
     for row in up:
         row.extend([""] * (max_cols - len(row)))

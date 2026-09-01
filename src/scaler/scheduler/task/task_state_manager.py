@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Tuple, Type
+from typing import Optional
 
 from scaler.protocol.capnp import TaskState
 from scaler.scheduler.task.task_event import TaskEvent
@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 class TaskStateManager:
     # every state carries a counter, so a new member of TaskState needs no edit here
-    TASK_STATES: Tuple[TaskState, ...] = tuple(TaskState)
+    TASK_STATES: tuple[TaskState, ...] = tuple(TaskState)
 
     def __init__(self, debug: bool):
         self._debug = debug
-        self._task_id_to_state_machine: Dict[TaskID, TaskStateMachine] = dict()
-        self._statistics: Dict[TaskState, int] = {state: 0 for state in self.TASK_STATES}
+        self._task_id_to_state_machine: dict[TaskID, TaskStateMachine] = dict()
+        self._statistics: dict[TaskState, int] = {state: 0 for state in self.TASK_STATES}
 
     def add_state_machine(self, task_id: TaskID) -> TaskStateMachine:
         """Create new task state machine, the machine starts in the inactive state"""
@@ -39,7 +39,7 @@ class TaskStateManager:
     def get_state_machine(self, task_id: TaskID) -> Optional[TaskStateMachine]:
         return self._task_id_to_state_machine.get(task_id, None)
 
-    def commit(self, task_id: TaskID, event_type: Type[TaskEvent], target: TaskState) -> None:
+    def commit(self, task_id: TaskID, event_type: type[TaskEvent], target: TaskState) -> None:
         """Write the state that the action of ``event_type`` returned, or the state a faulted task is torn down into.
 
         This is the only place that moves a task from one state to another, so it is also the only place the state
@@ -64,7 +64,7 @@ class TaskStateManager:
         self._statistics[source] -= 1
         self._statistics[target] += 1
 
-    def get_statistics(self) -> Dict[TaskState, int]:
+    def get_statistics(self) -> dict[TaskState, int]:
         return self._statistics
 
     def get_debug_paths(self) -> str:

@@ -7,7 +7,7 @@ import logging
 import math
 import os
 import shlex
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 try:
@@ -32,7 +32,7 @@ ORB_AWS_EC2_POLLING_INTERVAL_SECONDS = 5
 ORB_AWS_EC2_MAX_POLLING_ATTEMPTS = 60
 
 
-def _extract_git_url_and_branch(requirements_content: str) -> Optional[Tuple[str, str]]:
+def _extract_git_url_and_branch(requirements_content: str) -> Optional[tuple[str, str]]:
     """Return (clone_url, branch) for the first git+ requirement, or None.
 
     Only PEP 508 VCS form is supported: name @ git+<url>[@branch]
@@ -76,7 +76,7 @@ class ORBWorkerProvisioner(DeclarativeWorkerProvisioner):
         self._sdk = sdk
         self._template_id = template_id
         self._workers_per_instance = workers_per_instance
-        self._units: List[str] = []  # EC2 instance IDs of active units
+        self._units: list[str] = []  # EC2 instance IDs of active units
         self._capacity_coordinator = CapacityCoordinator(
             start_units=self.start_units,
             stop_units=self.stop_units,
@@ -89,7 +89,7 @@ class ORBWorkerProvisioner(DeclarativeWorkerProvisioner):
         return len(self._units)
 
     async def set_desired_task_concurrency(
-        self, requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
+        self, requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
     ) -> None:
         own_capabilities = self._config.worker_config.per_worker_capabilities.capabilities
         task_concurrency = extract_desired_count(requests, own_capabilities)

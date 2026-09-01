@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional, Tuple
+from typing import Optional
 
 from scaler.config import defaults
 from scaler.config.config_class import ConfigClass
@@ -8,7 +8,7 @@ from scaler.utility.logging.utility import LoggingLevel
 
 @dataclasses.dataclass
 class LoggingConfig(ConfigClass):
-    paths: Tuple[str, ...] = dataclasses.field(
+    paths: tuple[str, ...] = dataclasses.field(
         default=defaults.DEFAULT_LOGGING_PATHS,
         metadata=dict(
             type=str,

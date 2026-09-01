@@ -195,7 +195,7 @@ def _run_sync(coro: Awaitable[Any]) -> Any:
 # to keep the wasm backend off the import path on native CPython.
 _YMQ_HEADER_FORMAT: str = "<Q"
 
-# Heartbeat tick interval, in milliseconds. Set well under the default 60s
+# Heartbeat tick interval, in milliseconds. set well under the default 60s
 # ``client_timeout_seconds`` so a few missed ticks don't trip eviction.
 _HEARTBEAT_INTERVAL_MS: int = 5000
 

@@ -1,7 +1,7 @@
 import collections
 import graphlib
 import itertools
-from typing import Generic, Hashable, Iterable, List, Mapping, Optional, Tuple, TypeVar
+from typing import Generic, Hashable, Iterable, Mapping, Optional, TypeVar
 
 from bidict import bidict
 
@@ -27,7 +27,7 @@ class TopologicalSorter(Generic[GraphKeyType]):
 
         self._graph_matrix_mask: Optional[np.ndarray] = None
         self._visited_vertices_mask: Optional[np.ndarray] = None
-        self._ready_nodes: Optional[List[GraphKeyType]] = None
+        self._ready_nodes: Optional[list[GraphKeyType]] = None
 
         self._n_done = 0
         self._n_visited = 0
@@ -88,7 +88,7 @@ class TopologicalSorter(Generic[GraphKeyType]):
         if self._has_cycle():
             raise graphlib.CycleError("cycle detected")
 
-    def get_ready(self) -> Tuple[GraphKeyType, ...]:
+    def get_ready(self) -> tuple[GraphKeyType, ...]:
         if self._ready_nodes is None:
             raise ValueError("prepare() must be called first")
 
@@ -152,7 +152,7 @@ class TopologicalSorter(Generic[GraphKeyType]):
                 return True
         return False
 
-    def _get_zero_degree_keys(self) -> List[GraphKeyType]:
+    def _get_zero_degree_keys(self) -> list[GraphKeyType]:
         ids = self._get_mask_diff(self._visited_vertices_mask, self._get_zero_degree_mask(self._get_masked_matrix()))
         return [self._key_to_id.inverse[_id] for _id in ids]
 
@@ -170,5 +170,5 @@ class TopologicalSorter(Generic[GraphKeyType]):
         return np.logical_not(np.in1d(np.arange(masked_matrix.nrows), indices))
 
     @staticmethod
-    def _get_mask_diff(old_mask: np.ndarray, new_mask: np.ndarray) -> List[int]:
+    def _get_mask_diff(old_mask: np.ndarray, new_mask: np.ndarray) -> list[int]:
         return np.argwhere(old_mask != new_mask).ravel().tolist()

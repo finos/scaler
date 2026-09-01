@@ -1,7 +1,7 @@
 """Test that ``WebUIApp._process_worker_state`` exposes capabilities as a dict.
 
 Downstream code in ``_process_scheduler`` calls ``.keys()`` on the stored capabilities,
-so the handler must normalise the capnp ``List(TaskCapability)`` reader into a
+so the handler must normalise the capnp ``list(TaskCapability)`` reader into a
 ``{name: value}`` dict keyed by capability name.
 """
 

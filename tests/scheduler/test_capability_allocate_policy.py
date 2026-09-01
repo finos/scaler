@@ -1,6 +1,6 @@
 import threading
 import unittest
-from typing import Dict, Optional, Set
+from typing import Optional
 
 from scaler.protocol.capnp import Task
 from scaler.scheduler.controllers.policies.simple_policy.allocation.capability_allocate_policy import (
@@ -94,7 +94,7 @@ class TestCapabilityAllocatePolicy(unittest.TestCase):
 
         # Adds a bunch of tasks
 
-        worker_id_to_tasks: Dict[WorkerID, Set[TaskID]] = {WorkerID(b"worker_1"): set(), WorkerID(b"worker_2"): set()}
+        worker_id_to_tasks: dict[WorkerID, set[TaskID]] = {WorkerID(b"worker_1"): set(), WorkerID(b"worker_2"): set()}
 
         for i in range(0, N_TASKS):
             task = self.__create_task(TaskID(f"task_{i}".encode()), {})
@@ -223,9 +223,9 @@ class TestCapabilityAllocatePolicy(unittest.TestCase):
         self.assertIsNotNone(advice, "balance() did not terminate -- the balancer is stuck in an infinite loop")
 
     @staticmethod
-    def __balance_with_timeout(allocator: CapabilityAllocatePolicy, timeout_seconds: float) -> Optional[Dict]:
+    def __balance_with_timeout(allocator: CapabilityAllocatePolicy, timeout_seconds: float) -> Optional[dict]:
         """Runs balance() in a daemon thread; returns its result, or None if it did not finish in time."""
-        result: Dict[str, Dict] = {}
+        result: dict[str, dict] = {}
 
         def run() -> None:
             result["advice"] = allocator.balance()
@@ -236,7 +236,7 @@ class TestCapabilityAllocatePolicy(unittest.TestCase):
         return result.get("advice")
 
     @staticmethod
-    def __create_task(task_id: TaskID, capabilities: Dict[str, int]) -> Task:
+    def __create_task(task_id: TaskID, capabilities: dict[str, int]) -> Task:
         return Task(
             taskId=task_id,
             source=ClientID(b"client_id"),

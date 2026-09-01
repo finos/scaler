@@ -3,7 +3,6 @@ import os
 import unittest
 import unittest.mock
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 from scaler.protocol.capnp import Task, TaskCancelConfirmType, TaskResult, TaskResultType, TaskState
 from scaler.scheduler.controllers import task_controller
@@ -49,7 +48,7 @@ def format_snapshot_line(source_name: str, scenario_name: str, target_name: str)
     return f"{source_name:<{SOURCE_COLUMN_WIDTH}} {scenario_name:<{SCENARIO_COLUMN_WIDTH}} -> {target_name}"
 
 
-def parse_snapshot(text: str) -> List[Tuple[str, str, str]]:
+def parse_snapshot(text: str) -> list[tuple[str, str, str]]:
     rows = []
     for line in text.splitlines():
         if not line.strip() or line.startswith("#"):
@@ -62,7 +61,7 @@ def parse_snapshot(text: str) -> List[Tuple[str, str, str]]:
     return rows
 
 
-async def build_snapshot_rows() -> List[Tuple[str, str, str]]:
+async def build_snapshot_rows() -> list[tuple[str, str, str]]:
     rows = []
     for source in LIVE_TASK_STATES:
         for scenario in SCENARIOS:
@@ -117,7 +116,7 @@ class TestTaskStateGraph(unittest.IsolatedAsyncioTestCase):
         terminal_names = {state.name for state in TERMINAL_TASK_STATES}
 
         for source in LIVE_TASK_STATES:
-            reachable: Set[str] = set()
+            reachable: set[str] = set()
             pending = [source.name]
             while pending:
                 source_name = pending.pop()
@@ -144,8 +143,8 @@ class TestTaskStateGraph(unittest.IsolatedAsyncioTestCase):
 
                     self.assertEqual(state_machine.get_path(), path_before)
 
-    def __snapshot_edges(self) -> Dict[str, Set[str]]:
-        edges: Dict[str, Set[str]] = {}
+    def __snapshot_edges(self) -> dict[str, set[str]]:
+        edges: dict[str, set[str]] = {}
         for source_name, _, target_name in parse_snapshot(SNAPSHOT_PATH.read_text()):
             if target_name == REJECTED:
                 continue
@@ -430,7 +429,7 @@ class TestTaskStateExclusion(unittest.IsolatedAsyncioTestCase):
 
         in_send = asyncio.Event()
         release = asyncio.Event()
-        committed: List[str] = []
+        committed: list[str] = []
 
         async def blocking_send(peer, message, detached=False):
             if isinstance(message, TaskResult):

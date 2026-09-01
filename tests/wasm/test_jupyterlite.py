@@ -52,7 +52,7 @@ DOCS_HTML = REPO_ROOT / "docs" / "build" / "html"
 
 
 @unittest.skipUnless(
-    os.environ.get("RUN_JUPYTERLITE_TEST") == "1", "Set RUN_JUPYTERLITE_TEST=1 to enable the headless JupyterLite test."
+    os.environ.get("RUN_JUPYTERLITE_TEST") == "1", "set RUN_JUPYTERLITE_TEST=1 to enable the headless JupyterLite test."
 )
 class JupyterLiteTests(unittest.TestCase):
     """Headless test for the docs-site JupyterLite build."""

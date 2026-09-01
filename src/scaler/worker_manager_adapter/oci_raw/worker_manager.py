@@ -7,7 +7,7 @@ import logging
 import math
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import oci
 
@@ -36,7 +36,7 @@ class OCIRawWorkerProvisioner(DeclarativeWorkerProvisioner):
     def __init__(self, config: OCIRawWorkerManagerConfig, max_instances: int) -> None:
         self._config = config
         self._capabilities = config.worker_config.per_worker_capabilities.capabilities
-        self._instances: List[_InstanceInfo] = []
+        self._instances: list[_InstanceInfo] = []
         self._container_instances_client: Any = None
         self._capacity_coordinator = CapacityCoordinator(
             start_units=self.start_units,
@@ -63,7 +63,7 @@ class OCIRawWorkerProvisioner(DeclarativeWorkerProvisioner):
         return len(self._instances)
 
     async def set_desired_task_concurrency(
-        self, requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
+        self, requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
     ) -> None:
         task_concurrency = extract_desired_count(requests, self._capabilities)
         workers_per_instance = max(1, int(self._config.instance_ocpus))

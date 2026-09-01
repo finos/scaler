@@ -1,4 +1,4 @@
-from typing import Optional, Set
+from typing import Optional
 
 from scaler.client.agent.mixins import ObjectManager
 from scaler.io.mixins import AsyncConnector
@@ -8,7 +8,7 @@ from scaler.utility.identifiers import ClientID, ObjectID
 
 class ClientObjectManager(ObjectManager):
     def __init__(self, identity: ClientID):
-        self._sent_object_ids: Set[ObjectID] = set()
+        self._sent_object_ids: set[ObjectID] = set()
         self._sent_serializer_id: Optional[ObjectID] = None
 
         self._identity = identity

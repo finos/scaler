@@ -6,7 +6,7 @@ import gzip
 import logging
 import re
 from concurrent.futures import Future
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Optional
 
 import cloudpickle
 import oci
@@ -64,9 +64,9 @@ class OCIHPCExecutionBackend(TaskInputLoader, ExecutionBackend):
         self._oci_profile = oci_profile
         self._auth_type = auth_type
 
-        self._task_id_to_instance_id: Dict[TaskID, str] = {}
-        self._task_id_to_input_key: Dict[TaskID, str] = {}
-        self._monitor_tasks: Set[asyncio.Task] = set()
+        self._task_id_to_instance_id: dict[TaskID, str] = {}
+        self._task_id_to_input_key: dict[TaskID, str] = {}
+        self._monitor_tasks: set[asyncio.Task] = set()
 
         self._container_instances_client: Any = None
         self._object_storage_client: Any = None
@@ -76,10 +76,10 @@ class OCIHPCExecutionBackend(TaskInputLoader, ExecutionBackend):
         self._loader = load_task_inputs
         self._initialize_oci_clients()
 
-    async def load_task_inputs(self, task: Task) -> Tuple[Any, List[Any]]:
+    async def load_task_inputs(self, task: Task) -> tuple[Any, list[Any]]:
         return await self._loader(task)
 
-    def _build_oci_signer(self) -> Tuple[Dict[str, Any], Any]:
+    def _build_oci_signer(self) -> tuple[dict[str, Any], Any]:
         if self._auth_type == OCIAuthType.instance_principal:
             signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
             return {"region": self._oci_region}, signer
@@ -90,7 +90,7 @@ class OCIHPCExecutionBackend(TaskInputLoader, ExecutionBackend):
 
     def _initialize_oci_clients(self) -> None:
         config, signer = self._build_oci_signer()
-        kwargs: Dict[str, Any] = {"config": config}
+        kwargs: dict[str, Any] = {"config": config}
         if signer is not None:
             kwargs["signer"] = signer
 
@@ -143,8 +143,8 @@ class OCIHPCExecutionBackend(TaskInputLoader, ExecutionBackend):
         pass
 
     async def _create_container_instance(
-        self, task: Task, function: Any, arguments: List[Any]
-    ) -> Tuple[str, Optional[str]]:
+        self, task: Task, function: Any, arguments: list[Any]
+    ) -> tuple[str, Optional[str]]:
         task_id_hex = task.taskId.hex()
         func_name = getattr(function, "__name__", "unknown")
 

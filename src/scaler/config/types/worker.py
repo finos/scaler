@@ -1,6 +1,5 @@
 import dataclasses
 import sys
-from typing import Dict, List
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -14,7 +13,7 @@ from scaler.config.mixins import ConfigType
 class WorkerNames(ConfigType):
     """Parses a comma-separated string of worker names into a list."""
 
-    names: List[str] = dataclasses.field(default_factory=list)
+    names: list[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_string(cls, value: str) -> Self:
@@ -36,11 +35,11 @@ class WorkerNames(ConfigType):
 class WorkerCapabilities(ConfigType):
     """Parses a string of worker capabilities."""
 
-    capabilities: Dict[str, int] = dataclasses.field(default_factory=dict)
+    capabilities: dict[str, int] = dataclasses.field(default_factory=dict)
 
     @classmethod
     def from_string(cls, value: str) -> Self:
-        capabilities: Dict[str, int] = {}
+        capabilities: dict[str, int] = {}
         if not value:
             return cls(capabilities)
         for item in value.split(","):

@@ -3,7 +3,7 @@ import dataclasses
 import enum
 import logging
 from asyncio import Queue
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Optional, Union
 
 from scaler.io.mixins import AsyncBinder, AsyncObjectStorageConnector, AsyncPublisher
 from scaler.protocol.capnp import (
@@ -46,18 +46,18 @@ class _GraphState(enum.Enum):
 class _TaskInfo:
     state: _NodeTaskState
     task: Task
-    result_object_ids: List[ObjectID] = dataclasses.field(default_factory=list)
+    result_object_ids: list[ObjectID] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
 class _Graph:
-    target_task_ids: List[TaskID]
+    target_task_ids: list[TaskID]
     sorter: TopologicalSorter
-    tasks: Dict[TaskID, _TaskInfo]
+    tasks: dict[TaskID, _TaskInfo]
     depended_task_id_to_task_id: ManyToManyDict[TaskID, TaskID]
     client: ClientID
     status: _GraphState = dataclasses.field(default=_GraphState.Running)
-    running_task_ids: Set[TaskID] = dataclasses.field(default_factory=set)
+    running_task_ids: set[TaskID] = dataclasses.field(default_factory=set)
 
 
 class VanillaGraphTaskController(GraphTaskController, Looper, Reporter):
@@ -96,8 +96,8 @@ class VanillaGraphTaskController(GraphTaskController, Looper, Reporter):
 
         self._unassigned: Queue = Queue()
 
-        self._graph_task_id_to_graph: Dict[TaskID, _Graph] = dict()
-        self._task_id_to_graph_task_id: Dict[TaskID, TaskID] = dict()
+        self._graph_task_id_to_graph: dict[TaskID, _Graph] = dict()
+        self._task_id_to_graph_task_id: dict[TaskID, TaskID] = dict()
 
     def register(
         self,
@@ -176,7 +176,7 @@ class VanillaGraphTaskController(GraphTaskController, Looper, Reporter):
         client, graph_task = await self._unassigned.get()
         await self.__add_new_graph(client, graph_task)
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         return {"graph_manager": {"unassigned": self._unassigned.qsize()}}
 
     async def __add_new_graph(self, client_id: ClientID, graph_task: GraphTask):
@@ -290,7 +290,7 @@ class VanillaGraphTaskController(GraphTaskController, Looper, Reporter):
         )
 
         # cancel all inactive tasks
-        task_cancel_confirms: List[TaskCancelConfirm] = list()
+        task_cancel_confirms: list[TaskCancelConfirm] = list()
         while graph_info.sorter.is_active():
             ready_task_ids = graph_info.sorter.get_ready()
             if not ready_task_ids:
@@ -343,7 +343,7 @@ class VanillaGraphTaskController(GraphTaskController, Looper, Reporter):
         ]
 
         # mark all running tasks done
-        results: List[TaskResult] = list()
+        results: list[TaskResult] = list()
         for task_id in graph_info.running_task_ids.copy():
             new_result_object_ids = await self.__duplicate_objects(graph_info.client, result_objects)
             result = TaskResult(
@@ -482,8 +482,8 @@ class VanillaGraphTaskController(GraphTaskController, Looper, Reporter):
             )
 
     async def __duplicate_objects(
-        self, owner: ClientID, result_objects: List[Tuple[ObjectID, bytes]]
-    ) -> List[ObjectID]:
+        self, owner: ClientID, result_objects: list[tuple[ObjectID, bytes]]
+    ) -> list[ObjectID]:
         new_result_object_ids = [ObjectID.generate_object_id(owner) for _ in result_objects]
 
         futures = [
@@ -504,10 +504,10 @@ class VanillaGraphTaskController(GraphTaskController, Looper, Reporter):
             owner, new_object_id, ObjectMetadata.ObjectContentType.object, object_name
         )
 
-    async def __send_results(self, client_id: ClientID, results: List[TaskResult]):
+    async def __send_results(self, client_id: ClientID, results: list[TaskResult]):
         await asyncio.gather(*[self._binder.send(client_id, result, detached=True) for result in results])
 
-    async def __send_task_cancel_confirms(self, client_id: ClientID, task_cancel_confirms: List[TaskCancelConfirm]):
+    async def __send_task_cancel_confirms(self, client_id: ClientID, task_cancel_confirms: list[TaskCancelConfirm]):
         await asyncio.gather(
             *[
                 self._binder.send(client_id, task_cancel_confirm, detached=True)

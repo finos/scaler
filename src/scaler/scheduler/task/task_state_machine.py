@@ -1,5 +1,4 @@
 import asyncio
-from typing import List, Tuple
 
 from scaler.protocol.capnp import TaskState
 
@@ -22,7 +21,7 @@ class TaskStateMachine:
 
     def __init__(self, debug: bool):
         self._debug = debug
-        self._paths: List[Tuple[TaskState, str]] = list()
+        self._paths: list[tuple[TaskState, str]] = list()
 
         self._state: TaskState = TaskState.inactive
 

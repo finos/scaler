@@ -1,6 +1,5 @@
 import logging
 from math import ceil
-from typing import Dict, List, Tuple
 
 from scaler.protocol.capnp import ScalingManagerStatus, WorkerManagerCommand, WorkerManagerHeartbeat
 from scaler.scheduler.controllers.policies.simple_policy.scaling.mixins import ScalingPolicy
@@ -26,31 +25,31 @@ class VanillaScalingPolicy(ScalingPolicy):
     def __init__(self):
         self._lower_task_ratio = 1
         self._upper_task_ratio = 10
-        self._logged_desired_by_manager: Dict[bytes, int] = {}
+        self._logged_desired_by_manager: dict[bytes, int] = {}
 
     def get_scaling_commands(
         self,
         information_snapshot: InformationSnapshot,
         worker_manager_heartbeat: WorkerManagerHeartbeat,
-        managed_worker_ids: List[WorkerID],
-        worker_manager_snapshots: Dict[bytes, WorkerManagerSnapshot],
-    ) -> List[WorkerManagerCommand]:
+        managed_worker_ids: list[WorkerID],
+        worker_manager_snapshots: dict[bytes, WorkerManagerSnapshot],
+    ) -> list[WorkerManagerCommand]:
         # the manager being answered counts as live even if no snapshot was built for it
         live_manager_ids = set(worker_manager_snapshots) | {worker_manager_heartbeat.workerManagerID}
         forget_departed_managers(self._logged_desired_by_manager, live_manager_ids)
 
         desired = self._compute_desired_worker_count(information_snapshot, worker_manager_heartbeat, managed_worker_ids)
-        desired_per_capset: List[Tuple[Dict[str, int], int]] = [({}, desired)]
+        desired_per_capset: list[tuple[dict[str, int], int]] = [({}, desired)]
         return [build_set_desired_command(desired_per_capset)]
 
-    def get_status(self, managed_workers: Dict[bytes, List[WorkerID]]) -> ScalingManagerStatus:
+    def get_status(self, managed_workers: dict[bytes, list[WorkerID]]) -> ScalingManagerStatus:
         return build_scaling_manager_status(managed_workers)
 
     def _compute_desired_worker_count(
         self,
         information_snapshot: InformationSnapshot,
         worker_manager_heartbeat: WorkerManagerHeartbeat,
-        managed_worker_ids: List[WorkerID],
+        managed_worker_ids: list[WorkerID],
     ) -> int:
         """Compute the target worker count for this manager from current task and worker observations."""
         current = len(managed_worker_ids)

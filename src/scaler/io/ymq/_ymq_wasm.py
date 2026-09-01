@@ -27,7 +27,7 @@ import struct
 import sys
 from collections import deque
 from enum import IntEnum
-from typing import Any, Callable, Deque, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -288,7 +288,7 @@ class IOContext:
 # ConnectorSocket
 
 
-# Type aliases for callbacks. We use ``Any`` because mypy can't see across
+# type aliases for callbacks. We use ``Any`` because mypy can't see across
 # Pyodide's JS bridge. ``ConnectCallback`` receives ``None`` on success or an
 # Exception on failure; ``SendCallback`` is the same. ``RecvCallback`` receives
 # a Message on success or an Exception on failure.
@@ -325,12 +325,12 @@ class ConnectorSocket:
         # Reassembly of the raw byte stream coming out of the WebSocket.
         self._recv_buffer: bytearray = bytearray()
         # Decoded application messages waiting to be delivered.
-        self._recv_queue: Deque[Message] = deque()
+        self._recv_queue: deque[Message] = deque()
         # Callbacks waiting for a message to arrive.
-        self._recv_callbacks: Deque[RecvCallback] = deque()
+        self._recv_callbacks: deque[RecvCallback] = deque()
 
         # send_message calls made before the WebSocket is open: (payload_bytes, callback).
-        self._pending_sends: List[tuple] = []
+        self._pending_sends: list[tuple] = []
 
         # Handshake state.
         self._handshake_complete: bool = False
@@ -338,7 +338,7 @@ class ConnectorSocket:
         self._remote_identity: Optional[bytes] = None
 
         # Holds JsProxy objects for callbacks so they aren't GC'd before fired.
-        self._proxies: List[Any] = []
+        self._proxies: list[Any] = []
 
     # ------------------------------------------------------------------
     # Public API

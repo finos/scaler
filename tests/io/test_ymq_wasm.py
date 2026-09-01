@@ -9,7 +9,7 @@ WebSocket-like object so that we can drive the receive path directly.
 import struct
 import unittest
 import unittest.mock
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from scaler.io.ymq import _ymq_wasm
 from scaler.io.ymq._ymq_wasm import (
@@ -38,7 +38,7 @@ class _FakeWebSocket:
     """Minimal stand-in for ``js.WebSocket`` to drive the shim from Python."""
 
     def __init__(self) -> None:
-        self.sent: List[bytes] = []
+        self.sent: list[bytes] = []
         self.closed: bool = False
         self.binaryType: str = ""
 
@@ -172,7 +172,7 @@ class HandshakeTest(unittest.TestCase):
         # Remote sends magic + identity; should not surface as a Message.
         socket = _make_socket()
         _open(socket)
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(lambda r: received.append(r))
         _feed(socket, _ymq_wasm.MAGIC_STRING + _frame(b"remote-id"))
         self.assertEqual(received, [])  # no message yet
@@ -182,7 +182,7 @@ class HandshakeTest(unittest.TestCase):
     def test_invalid_remote_magic_fails_socket(self) -> None:
         socket = _make_socket()
         _open(socket)
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(lambda r: received.append(r))
         _feed(socket, b"BAD!" + _frame(b"id"))
         self.assertEqual(len(received), 1)
@@ -208,7 +208,7 @@ class FramingTest(unittest.TestCase):
     def test_send_before_open_is_queued(self) -> None:
         socket = _make_socket()
         # Don't call _open yet
-        cb_results: List[Any] = []
+        cb_results: list[Any] = []
         socket.send_message_with_callback(cb_results.append, Bytes(b"q"))
         self.assertEqual(socket._ws.sent, [])
         self.assertEqual(cb_results, [])
@@ -220,7 +220,7 @@ class FramingTest(unittest.TestCase):
 
     def test_recv_delivers_after_handshake(self) -> None:
         socket = self._open_handshaken()
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(received.append)
         _feed(socket, _frame(b"payload-1"))
         self.assertEqual(len(received), 1)
@@ -230,14 +230,14 @@ class FramingTest(unittest.TestCase):
     def test_recv_buffers_message_arriving_before_callback(self) -> None:
         socket = self._open_handshaken()
         _feed(socket, _frame(b"early"))
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(received.append)
         self.assertEqual(len(received), 1)
         self.assertEqual(received[0].payload.data, b"early")
 
     def test_split_frame_is_reassembled(self) -> None:
         socket = self._open_handshaken()
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(received.append)
         full = _frame(b"reassembled-payload")
         # Feed in chunks of 1 byte.
@@ -248,7 +248,7 @@ class FramingTest(unittest.TestCase):
 
     def test_multiple_messages_in_single_chunk(self) -> None:
         socket = self._open_handshaken()
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(received.append)
         socket.recv_message_with_callback(received.append)
         socket.recv_message_with_callback(received.append)
@@ -257,7 +257,7 @@ class FramingTest(unittest.TestCase):
 
     def test_zero_length_message(self) -> None:
         socket = self._open_handshaken()
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(received.append)
         _feed(socket, _frame(b""))
         self.assertEqual(len(received), 1)
@@ -266,7 +266,7 @@ class FramingTest(unittest.TestCase):
     def test_handshake_and_first_message_in_one_chunk(self) -> None:
         socket = _make_socket()
         _open(socket)
-        received: List[Any] = []
+        received: list[Any] = []
         socket.recv_message_with_callback(received.append)
         _feed(socket, _ymq_wasm.MAGIC_STRING + _frame(b"remote") + _frame(b"first"))
         self.assertEqual(len(received), 1)
@@ -277,8 +277,8 @@ class ShutdownTest(unittest.TestCase):
     def test_shutdown_closes_ws_and_drains_callbacks(self) -> None:
         socket = _make_socket()
         _open(socket)
-        recv_results: List[Any] = []
-        send_results: List[Any] = []
+        recv_results: list[Any] = []
+        send_results: list[Any] = []
         socket.recv_message_with_callback(recv_results.append)
         socket.send_message_with_callback(send_results.append, Bytes(b"x"))  # immediate send (open)
         # Queue another send AFTER closing the underlying ws to test pending path.
@@ -289,7 +289,7 @@ class ShutdownTest(unittest.TestCase):
 
     def test_shutdown_fails_pending_sends(self) -> None:
         socket = _make_socket()  # NOT opened yet
-        send_results: List[Any] = []
+        send_results: list[Any] = []
         socket.send_message_with_callback(send_results.append, Bytes(b"x"))
         socket.shutdown()
         self.assertEqual(len(send_results), 1)
@@ -299,7 +299,7 @@ class ShutdownTest(unittest.TestCase):
         socket = _make_socket()
         _open(socket)
         socket.shutdown()
-        results: List[Any] = []
+        results: list[Any] = []
         socket.send_message_with_callback(results.append, Bytes(b"x"))
         self.assertEqual(len(results), 1)
         self.assertIsInstance(results[0], SocketStopRequestedError)
@@ -308,7 +308,7 @@ class ShutdownTest(unittest.TestCase):
         socket = _make_socket()
         _open(socket)
         socket.shutdown()
-        results: List[Any] = []
+        results: list[Any] = []
         socket.recv_message_with_callback(results.append)
         self.assertEqual(len(results), 1)
         # Buffered close error is SocketStopRequested when shutdown was explicit.
@@ -319,7 +319,7 @@ class RemoteCloseTest(unittest.TestCase):
     def test_remote_close_surfaces_error(self) -> None:
         socket = _make_socket()
         _open(socket)
-        results: List[Any] = []
+        results: list[Any] = []
         socket.recv_message_with_callback(results.append)
 
         class _Evt:
@@ -343,7 +343,7 @@ class RemoteCloseTest(unittest.TestCase):
         socket._on_close(_Evt())
         # The buffered message was queued before close; recv_message should see
         # it ahead of the close error.
-        results: List[Any] = []
+        results: list[Any] = []
         socket.recv_message_with_callback(results.append)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].payload.data, b"buffered")

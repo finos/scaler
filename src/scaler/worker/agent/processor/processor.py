@@ -9,7 +9,7 @@ import time
 from contextlib import redirect_stderr, redirect_stdout
 from contextvars import ContextVar, Token
 from multiprocessing.synchronize import Event as EventType
-from typing import IO, Callable, List, Optional, Tuple, TypeVar, cast
+from typing import IO, Callable, Optional, TypeVar, cast
 
 import tblib.pickling_support
 
@@ -66,7 +66,7 @@ class Processor(multiprocessing.get_context("spawn").Process):  # type: ignore
         suspend_trigger: Optional[EventType],
         garbage_collect_interval_seconds: int,
         trim_memory_threshold_bytes: int,
-        logging_paths: Tuple[str, ...],
+        logging_paths: tuple[str, ...],
         logging_level: str,
         security_config: Optional[SecurityConfig] = None,
     ):
@@ -319,7 +319,7 @@ class Processor(multiprocessing.get_context("spawn").Process):  # type: ignore
             self._object_cache.add_object(task.source, object_id, bytes(object_content))
 
     @staticmethod
-    def __get_required_object_ids_for_task(task: Task) -> List[ObjectID]:
+    def __get_required_object_ids_for_task(task: Task) -> list[ObjectID]:
         serializer_id = ObjectID.generate_serializer_object_id(task.source)
         object_ids = [
             serializer_id,

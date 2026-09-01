@@ -4,7 +4,7 @@ import multiprocessing
 import pathlib
 import sys
 import uuid
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional
 
 from scaler.config.common.security import SecurityConfig
 from scaler.config.defaults import PROFILING_INTERVAL_SECONDS, WORKER_EXIT_NOTIFICATION_TIMEOUT_SECONDS
@@ -57,7 +57,7 @@ class Worker(multiprocessing.get_context("spawn").Process):  # type: ignore
         address: AddressConfig,
         object_storage_address: Optional[AddressConfig],
         preload: Optional[str],
-        capabilities: Dict[str, int],
+        capabilities: dict[str, int],
         io_threads: int,
         task_queue_size: int,
         heartbeat_interval_seconds: int,
@@ -66,7 +66,7 @@ class Worker(multiprocessing.get_context("spawn").Process):  # type: ignore
         task_timeout_seconds: int,
         death_timeout_seconds: int,
         hard_processor_suspend: bool,
-        logging_paths: Tuple[str, ...],
+        logging_paths: tuple[str, ...],
         logging_level: str,
         worker_manager_id: bytes,
         deterministic_worker_ids: bool = False,
@@ -326,7 +326,7 @@ class Worker(multiprocessing.get_context("spawn").Process):  # type: ignore
         # through, so some of these may never have been created.
         await self.__notify_scheduler_of_exit()
 
-        destroyables: List[Tuple[str, Callable[[], None]]] = []
+        destroyables: list[tuple[str, Callable[[], None]]] = []
         if self._connector_external is not None:
             destroyables.append(("connector_external", self._connector_external.destroy))
         if self._processor_manager is not None:

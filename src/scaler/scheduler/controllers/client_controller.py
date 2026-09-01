@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Dict, Optional, Set, Tuple
+from typing import Optional
 
 from scaler.io.mixins import AsyncBinder, AsyncPublisher
 from scaler.protocol.capnp import (
@@ -34,7 +34,7 @@ class VanillaClientController(ClientController, Looper, Reporter):
         self._task_controller: Optional[TaskController] = None
         self._worker_controller: Optional[WorkerController] = None
 
-        self._client_last_seen: Dict[ClientID, Tuple[float, ClientHeartbeat]] = dict()
+        self._client_last_seen: dict[ClientID, tuple[float, ClientHeartbeat]] = dict()
 
     def register(
         self,
@@ -50,7 +50,7 @@ class VanillaClientController(ClientController, Looper, Reporter):
         self._task_controller = task_controller
         self._worker_controller = worker_controller
 
-    def get_client_task_ids(self, client_id: ClientID) -> Set[TaskID]:
+    def get_client_task_ids(self, client_id: ClientID) -> set[TaskID]:
         return self._client_to_task_ids.get_values(client_id)
 
     def has_client_id(self, client_id: ClientID) -> bool:

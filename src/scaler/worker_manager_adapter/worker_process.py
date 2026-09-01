@@ -4,7 +4,7 @@ import multiprocessing
 import signal
 import sys
 from collections import deque
-from typing import Callable, Dict, Optional
+from typing import Callable, Optional
 
 from scaler.config.common.security import SecurityConfig
 from scaler.config.defaults import WORKER_EXIT_NOTIFICATION_TIMEOUT_SECONDS
@@ -46,7 +46,7 @@ class WorkerProcess(_SpawnProcess):  # type: ignore[valid-type, misc]
         name: str,
         address: AddressConfig,
         object_storage_address: Optional[AddressConfig],
-        capabilities: Dict[str, int],
+        capabilities: dict[str, int],
         base_concurrency: int,
         heartbeat_interval_seconds: int,
         death_timeout_seconds: int,

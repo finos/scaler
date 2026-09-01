@@ -41,7 +41,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 try:
     import oci  # noqa: F401
@@ -434,7 +434,7 @@ SCHEDULER_TESTS = {"sqrt": run_sqrt_test, "simple": run_simple_test, "map": run_
 # ---------------------------------------------------------------------------
 
 
-def load_config_file(config_path: str) -> Dict[str, Any]:
+def load_config_file(config_path: str) -> dict[str, Any]:
     """Load provisioner config JSON and map to CLI-compatible keys."""
     path = Path(config_path)
     if not path.exists():
@@ -521,8 +521,8 @@ def main() -> None:
         )
 
     run_all = args.phase == "all"
-    results: List[bool] = []
-    test_names: List[str] = []
+    results: list[bool] = []
+    test_names: list[str] = []
 
     _print_header("OCI HPC Worker Adapter Test Harness")
     print(f"  Profile:             {args.profile}")

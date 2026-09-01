@@ -8,7 +8,7 @@ job definition, and S3 bucket required for the Scaler AWS Batch worker manager.
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -79,9 +79,9 @@ class AWSBatchProvisioner:
         vcpus: int = 1,
         memory_mb: int = 2048,
         max_vcpus: int = 256,
-        instance_types: Optional[List[str]] = None,
+        instance_types: Optional[list[str]] = None,
         job_timeout_seconds: int = 3600,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         """
         Provision all required AWS resources.
 
@@ -90,7 +90,7 @@ class AWSBatchProvisioner:
             vcpus: vCPUs per job (integer for EC2)
             memory_mb: Memory per job in MB (will use 90% of nearest 2048MB multiple)
             max_vcpus: Max vCPUs for compute environment
-            instance_types: List of EC2 instance types (default: ["default_x86_64"])
+            instance_types: list of EC2 instance types (default: ["default_x86_64"])
             job_timeout_seconds: Max job runtime in seconds (default: 3600 = 1 hour)
 
         Returns:
@@ -149,7 +149,7 @@ class AWSBatchProvisioner:
         return result
 
     @staticmethod
-    def save_config(config: Dict[str, object], config_file: str = DEFAULT_CONFIG_FILE) -> None:
+    def save_config(config: dict[str, object], config_file: str = DEFAULT_CONFIG_FILE) -> None:
         """Save provisioned config to file."""
         path = Path(config_file)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,7 +158,7 @@ class AWSBatchProvisioner:
         logger.info(f"Config saved to {path.absolute()}")
 
     @staticmethod
-    def load_config(config_file: str = DEFAULT_CONFIG_FILE) -> Dict[str, object]:
+    def load_config(config_file: str = DEFAULT_CONFIG_FILE) -> dict[str, object]:
         """Load provisioned config from file."""
         path = Path(config_file)
         if not path.exists():
@@ -167,7 +167,7 @@ class AWSBatchProvisioner:
             return json.load(f)
 
     @staticmethod
-    def print_export_commands(config: Dict[str, object]) -> None:
+    def print_export_commands(config: dict[str, object]) -> None:
         """Print shell export commands for config values."""
         print(f"export SCALER_AWS_REGION=\"{config['aws_region']}\"")
         print(f"export SCALER_S3_BUCKET=\"{config['s3_bucket']}\"")
@@ -175,7 +175,7 @@ class AWSBatchProvisioner:
         print(f"export SCALER_JOB_DEFINITION=\"{config['job_definition_name']}\"")
 
     @staticmethod
-    def save_env_file(config: Dict[str, object], env_file: str = ".scaler_aws_hpc.env") -> None:
+    def save_env_file(config: dict[str, object], env_file: str = ".scaler_aws_hpc.env") -> None:
         """Save config as sourceable shell env file."""
         path = Path(env_file)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -275,7 +275,7 @@ class AWSBatchProvisioner:
 
         return role_arn
 
-    def provision_compute_environment(self, max_vcpus: int, instance_types: List[str]) -> str:
+    def provision_compute_environment(self, max_vcpus: int, instance_types: list[str]) -> str:
         """Create EC2 compute environment (not Fargate for better container reuse)."""
         env_name = f"{self._prefix}-compute"
 
@@ -400,7 +400,7 @@ class AWSBatchProvisioner:
             f"effective({int(MEMORY_UTILIZATION_FACTOR * 100)}%)={effective_memory}MB"
         )
 
-        # Set up CloudWatch Logs retention (30 days)
+        # set up CloudWatch Logs retention (30 days)
         self._setup_cloudwatch_logs_retention()
 
         response = self._batch.register_job_definition(
@@ -472,7 +472,7 @@ class AWSBatchProvisioner:
             logger.warning(f"Failed to cleanup old job definitions: {e}")
 
     def _setup_cloudwatch_logs_retention(self, retention_days: int = CLOUDWATCH_RETENTION_DAYS) -> None:
-        """Set CloudWatch Logs retention policy for AWS Batch logs."""
+        """set CloudWatch Logs retention policy for AWS Batch logs."""
         logs_client = self._session.client("logs")
         log_group_name = CLOUDWATCH_LOG_GROUP
 
@@ -485,19 +485,19 @@ class AWSBatchProvisioner:
                 if e.response["Error"]["Code"] != "ResourceAlreadyExistsException":
                     raise
 
-            # Set retention policy
+            # set retention policy
             logs_client.put_retention_policy(logGroupName=log_group_name, retentionInDays=retention_days)
-            logger.info(f"Set CloudWatch Logs retention: {retention_days} days for {log_group_name}")
+            logger.info(f"set CloudWatch Logs retention: {retention_days} days for {log_group_name}")
         except ClientError as e:
             logger.warning(f"Failed to set CloudWatch Logs retention: {e}")
 
-    def _get_default_subnets(self) -> List[str]:
+    def _get_default_subnets(self) -> list[str]:
         """Get default VPC subnets."""
         ec2 = self._session.client("ec2")
         response = ec2.describe_subnets(Filters=[{"Name": "default-for-az", "Values": ["true"]}])
         return [s["SubnetId"] for s in response["Subnets"]]
 
-    def _get_default_security_group(self) -> List[str]:
+    def _get_default_security_group(self) -> list[str]:
         """Get default security group."""
         ec2 = self._session.client("ec2")
         response = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": ["default"]}])
@@ -547,7 +547,7 @@ class AWSBatchProvisioner:
                 raise
             logger.info(f"ECR repository already exists: {repo_name}")
 
-        # Set lifecycle policy to keep only ECR_IMAGES_TO_KEEP latest images
+        # set lifecycle policy to keep only ECR_IMAGES_TO_KEEP latest images
         lifecycle_policy = {
             "rules": [
                 {
@@ -564,7 +564,7 @@ class AWSBatchProvisioner:
         }
         try:
             ecr.put_lifecycle_policy(repositoryName=repo_name, lifecyclePolicyText=json.dumps(lifecycle_policy))
-            logger.info(f"Set ECR lifecycle policy: keep {ECR_IMAGES_TO_KEEP} latest images")
+            logger.info(f"set ECR lifecycle policy: keep {ECR_IMAGES_TO_KEEP} latest images")
         except ClientError as e:
             logger.warning(f"Failed to set lifecycle policy: {e}")
 

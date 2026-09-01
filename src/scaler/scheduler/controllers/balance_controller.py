@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from scaler.io.mixins import AsyncBinder, AsyncPublisher
 from scaler.protocol.capnp import StateBalanceAdvice
@@ -17,7 +17,7 @@ class VanillaBalanceController(Looper):
 
         self._policy_controller = policy_controller
 
-        self._last_balance_advice: Dict[WorkerID, List[TaskID]] = dict()
+        self._last_balance_advice: dict[WorkerID, list[TaskID]] = dict()
         self._same_load_balance_advice_count = 0
 
         self._binder: Optional[AsyncBinder] = None
@@ -46,7 +46,7 @@ class VanillaBalanceController(Looper):
             for task_id in task_ids:
                 await self._task_controller.on_task_balance_cancel(task_id)
 
-    def __should_balance(self, current_advice: Dict[WorkerID, List[TaskID]]) -> bool:
+    def __should_balance(self, current_advice: dict[WorkerID, list[TaskID]]) -> bool:
         # 1. if this is the same advise as last time, then we +1 on same advice count
         # 2. if there is another different advice come in, then we reset same advice count to 0
         if self._last_balance_advice == current_advice:

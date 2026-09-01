@@ -3,7 +3,7 @@ import importlib
 import logging
 import os
 import traceback
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ def execute_preload(spec: str) -> None:
         raise PreloadSpecError("".join(traceback.format_exception_only(TypeError, e)).strip())
 
 
-def _parse_preload_spec(spec: str) -> Tuple[str, str, Optional[List[Any]], Optional[Dict[str, Any]]]:
+def _parse_preload_spec(spec: str) -> tuple[str, str, Optional[list[Any]], Optional[dict[str, Any]]]:
     """
     Parse 'pkg.mod:func(arg1, kw=val)' using AST.
     Returns (module_path, func_name, args_or_None, kwargs_or_None).

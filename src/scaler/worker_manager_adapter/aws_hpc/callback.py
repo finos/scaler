@@ -8,7 +8,7 @@ handling job completion and failure callbacks.
 import concurrent.futures
 import logging
 import threading
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +23,9 @@ class BatchJobCallback:
 
     def __init__(self) -> None:
         self._callback_lock = threading.Lock()
-        self._task_id_to_future: Dict[str, concurrent.futures.Future] = {}
-        self._task_id_to_batch_job_id: Dict[str, str] = {}
-        self._batch_job_id_to_task_id: Dict[str, str] = {}
+        self._task_id_to_future: dict[str, concurrent.futures.Future] = {}
+        self._task_id_to_batch_job_id: dict[str, str] = {}
+        self._batch_job_id_to_task_id: dict[str, str] = {}
 
     def on_job_succeeded(self, batch_job_id: str, result: Any) -> None:
         """
@@ -132,7 +132,7 @@ class BatchJobCallback:
         with self._callback_lock:
             return self._task_id_to_batch_job_id.get(task_id)
 
-    def get_pending_job_ids(self) -> List[str]:
+    def get_pending_job_ids(self) -> list[str]:
         """Get all pending AWS Batch job IDs."""
         with self._callback_lock:
             return list(self._batch_job_id_to_task_id.keys())

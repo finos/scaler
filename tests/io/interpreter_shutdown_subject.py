@@ -10,7 +10,7 @@ This is not a test module itself, and is named so that test discovery skips it.
 
 import asyncio
 import sys
-from typing import Any, Callable, Coroutine, Dict
+from typing import Any, Callable, Coroutine
 
 from scaler.config.types.address import AddressConfig
 from scaler.io.mixins import ConnectorRemoteType
@@ -26,7 +26,7 @@ PENDING_RECEIVE_DELAY_SECONDS = 0.5
 
 # Module globals are only dropped when the interpreter finalizes, which is exactly what these
 # scenarios need. A local would be collected while the interpreter is still fully functional.
-LEAKED: Dict[str, object] = {}
+LEAKED: dict[str, object] = {}
 
 
 async def binder_with_pending_receive() -> None:
@@ -71,7 +71,7 @@ async def connector_with_pending_receive() -> None:
     LEAKED["connector"] = connector
 
 
-SCENARIOS: Dict[str, Callable[[], Coroutine[Any, Any, None]]] = {
+SCENARIOS: dict[str, Callable[[], Coroutine[Any, Any, None]]] = {
     "binder_with_pending_receive": binder_with_pending_receive,
     "binder_without_python_del": binder_without_python_del,
     "connector_with_pending_receive": connector_with_pending_receive,

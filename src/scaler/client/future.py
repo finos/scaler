@@ -55,7 +55,7 @@ class ScalerFuture(concurrent.futures.Future):
         self._result_object_id: Optional[ObjectID] = None
         self._result_received = False
 
-        # Set as soon as the result object's fetching starts, ensuring the object is never fetched more than once.
+        # set as soon as the result object's fetching starts, ensuring the object is never fetched more than once.
         self._result_object_future: Optional[concurrent.futures.Future] = None
 
         self._task_result_type: Optional[TaskResultType] = None

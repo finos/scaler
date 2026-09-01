@@ -1,9 +1,9 @@
 from asyncio import Queue
-from typing import Any, Tuple, Union
+from typing import Any, Union
 
 from scaler.utility.queues.stable_priority_queue import StablePriorityQueue
 
-PriorityType = Union[int, Tuple["PriorityType", ...]]
+PriorityType = Union[int, tuple["PriorityType", ...]]
 
 
 class AsyncPriorityQueue(Queue):
@@ -38,7 +38,7 @@ class AsyncPriorityQueue(Queue):
         #     - Time complexity is O(log n) due to the underlying SortedDict structure.
         self._queue.decrease_priority(data)
 
-    def max_priority_item(self) -> Tuple[PriorityType, Any]:
+    def max_priority_item(self) -> tuple[PriorityType, Any]:
         """Return the current item at the front of the queue without removing it from the queue.
 
         Notes:

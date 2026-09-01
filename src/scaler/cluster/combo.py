@@ -1,7 +1,7 @@
 import logging
 import multiprocessing
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import psutil
 
@@ -58,7 +58,7 @@ class SchedulerClusterCombo:
         address: Optional[str] = None,
         object_storage_address: Optional[str] = None,
         monitor_address: Optional[str] = None,
-        per_worker_capabilities: Optional[Dict[str, int]] = None,
+        per_worker_capabilities: Optional[dict[str, int]] = None,
         worker_io_threads: int = DEFAULT_IO_THREADS,
         scheduler_io_threads: int = DEFAULT_IO_THREADS,
         max_number_of_tasks_waiting: int = DEFAULT_MAX_NUMBER_OF_TASKS_WAITING,
@@ -77,7 +77,7 @@ class SchedulerClusterCombo:
         protected: bool = True,
         scaler_policy: PolicyConfig = PolicyConfig(),
         event_loop: str = "builtin",
-        logging_paths: Tuple[str, ...] = DEFAULT_LOGGING_PATHS,
+        logging_paths: tuple[str, ...] = DEFAULT_LOGGING_PATHS,
         logging_level: str = DEFAULT_LOGGING_LEVEL,
         logging_config_file: Optional[str] = None,
         worker_manager_id: str = "combo",
@@ -194,7 +194,7 @@ class SchedulerClusterCombo:
             # has gone away. That orphaned-but-alive period is what added ~52s teardown latency
             # to test_cancel-style tests on the CI Windows runner. Snapshot the descendant tree
             # before terminating so we can directly TerminateProcess the orphans afterwards.
-            descendants: List[psutil.Process] = []
+            descendants: list[psutil.Process] = []
             if sys.platform == "win32":
                 try:
                     descendants = psutil.Process(self._worker_manager_process.pid).children(recursive=True)
@@ -213,7 +213,7 @@ class SchedulerClusterCombo:
         if sys.platform == "win32":
             # Process.terminate() on Windows is TerminateProcess, which kills the scheduler
             # without running its signal handler -- the BinderSocket then dies without sending
-            # FIN, and connected workers enter the YMQ reconnect retry loop. Set the shutdown
+            # FIN, and connected workers enter the YMQ reconnect retry loop. set the shutdown
             # event so the scheduler's daemon waiter triggers the same graceful path SIGTERM
             # triggers on POSIX, then fall back to terminate() if the scheduler does not exit
             # within the timeout.

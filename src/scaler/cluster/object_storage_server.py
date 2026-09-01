@@ -1,7 +1,7 @@
 import logging
 import multiprocessing
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
 from scaler.config.common.security import SecurityConfig
 from scaler.config.types.address import AddressConfig
@@ -25,7 +25,7 @@ class ObjectStorageServerProcess(multiprocessing.get_context("spawn").Process): 
         self,
         bind_address: AddressConfig,
         identity: str,
-        logging_paths: Tuple[str, ...],
+        logging_paths: tuple[str, ...],
         logging_level: str,
         logging_config_file: Optional[str],
         security_config: Optional[SecurityConfig] = None,

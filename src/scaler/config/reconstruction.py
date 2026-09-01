@@ -21,7 +21,7 @@ section).  It never calls _from_args or _from_args_with_subcommands.
 """
 
 import dataclasses
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
 from scaler.config.type_utils import (
     get_list_type,
@@ -37,7 +37,7 @@ from scaler.config.type_utils import (
 T = TypeVar("T")
 
 
-def _from_toml(config_cls: Type[T], data: Dict[str, Any]) -> T:
+def _from_toml(config_cls: type[T], data: dict[str, Any]) -> T:
     """Build a ConfigClass instance from a raw TOML section dict.
 
     This is the TOML-only reconstruction path.  It is called by _from_args
@@ -66,7 +66,7 @@ def _from_toml(config_cls: Type[T], data: Dict[str, Any]) -> T:
           class pulls its own fields from it.  This lets multiple composed
           classes share a single flat TOML section.
 
-    * Type coercion: the same precedence as ``_from_args`` is used - the
+    * type coercion: the same precedence as ``_from_args`` is used - the
       field's explicit ``type`` metadata (if any) is tried first, then the
       type derived from the field's Python type annotation.  This ensures
       e.g. enum fields with a value-based constructor (``mode = "fixed"``) and
@@ -77,7 +77,7 @@ def _from_toml(config_cls: Type[T], data: Dict[str, Any]) -> T:
     same dict safely.
     """
     normalized = {k.replace("-", "_"): v for k, v in data.items()}
-    result_kwargs: Dict[str, Any] = {}
+    result_kwargs: dict[str, Any] = {}
     for field in dataclasses.fields(config_cls):  # type: ignore[arg-type]
         if is_config_class(field.type):
             if field.name in normalized and isinstance(normalized[field.name], dict):
@@ -107,7 +107,7 @@ def _from_toml(config_cls: Type[T], data: Dict[str, Any]) -> T:
     return config_cls(**result_kwargs)
 
 
-def _from_args(config_cls: Type[T], kwargs: Dict[str, Any], toml_data: Optional[Dict[str, Any]] = None) -> T:
+def _from_args(config_cls: type[T], kwargs: dict[str, Any], toml_data: Optional[dict[str, Any]] = None) -> T:
     """Build a ConfigClass instance from a flat argparse-kwargs dict.
 
     This is the CLI reconstruction path, used for configs without subcommands
@@ -136,8 +136,8 @@ def _from_args(config_cls: Type[T], kwargs: Dict[str, Any], toml_data: Optional[
          a. Discriminated union list: each item has a ``type`` key (or
             whatever ``discriminator`` names) that selects the concrete class.
          b. Single dict (``[section]`` table): reconstructed as a single
-            instance, wrapped in a list if the field type is List[...].
-         c. List of dicts (``[[section]]`` array-of-tables): each item
+            instance, wrapped in a list if the field type is list[...].
+         c. list of dicts (``[[section]]`` array-of-tables): each item
             reconstructed independently.
 
     2. Nested ConfigClass (no ``section=``) - recurse into _from_args(),
@@ -146,14 +146,14 @@ def _from_args(config_cls: Type[T], kwargs: Dict[str, Any], toml_data: Optional[
 
     3. Plain field - pop the value from ``kwargs`` and use it directly.
     """
-    result_kwargs: Dict[str, Any] = {}
+    result_kwargs: dict[str, Any] = {}
     for field in dataclasses.fields(config_cls):  # type: ignore[arg-type]
         if "section" in field.metadata:
             # This field is populated from a named TOML section, not from CLI args.
             section_name = field.metadata["section"]
             raw = (toml_data or {}).get(section_name)
 
-            # Unwrap List[X] or Optional[X] to get the inner ConfigClass type
+            # Unwrap list[X] or Optional[X] to get the inner ConfigClass type
             # that _from_toml will be called with.
             inner_type: Any
             if is_list(field.type):
@@ -172,7 +172,7 @@ def _from_args(config_cls: Type[T], kwargs: Dict[str, Any], toml_data: Optional[
                 else:
                     result_kwargs[field.name] = None
             elif is_list(field.type) and is_union(inner_type):
-                # Discriminated union: e.g. List[Union[NativeConfig, SymphonyConfig]]
+                # Discriminated union: e.g. list[Union[NativeConfig, SymphonyConfig]]
                 # where each item has a "type" key that selects the concrete class.
                 discriminator = field.metadata["discriminator"]
                 tag_map = {m._tag: m for m in get_union_args(inner_type)}
@@ -203,7 +203,7 @@ def _from_args(config_cls: Type[T], kwargs: Dict[str, Any], toml_data: Optional[
     return config_cls(**result_kwargs)
 
 
-def _from_args_with_subcommands(cls: Type[T], kwargs: Dict[str, Any], dest: str) -> T:
+def _from_args_with_subcommands(cls: type[T], kwargs: dict[str, Any], dest: str) -> T:
     """Build a ConfigClass that has CLI subcommand fields from a flat argparse-kwargs dict.
 
     This is the entry point for configs that use the ``subcommand`` field
@@ -252,7 +252,7 @@ def _from_args_with_subcommands(cls: Type[T], kwargs: Dict[str, Any], dest: str)
     selected_config = _from_args_with_subcommands(config_cls, kwargs, f"{dest}_{subcommand}")  # type: ignore[arg-type]
 
     # All subcommand slots default to None; fill in only the selected one.
-    wrapper_kwargs: Dict[str, Any] = {f.name: None for f in subcommand_fields}
+    wrapper_kwargs: dict[str, Any] = {f.name: None for f in subcommand_fields}
     wrapper_kwargs[subcommand] = selected_config
 
     # Reconstruct any non-subcommand fields on the wrapper class itself.

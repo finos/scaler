@@ -4,7 +4,6 @@ import time
 import unittest
 from concurrent.futures import CancelledError, Future, InvalidStateError, TimeoutError, as_completed
 from threading import Event
-from typing import Tuple
 from unittest.mock import Mock
 
 from scaler import Client, SchedulerClusterCombo
@@ -270,7 +269,7 @@ class TestFuture(unittest.TestCase):
         self.assertTrue(finished.cancelled())
 
     @staticmethod
-    def __create_mocked_future(future_result, is_delayed: bool = True) -> Tuple[ClientID, ScalerFuture, Mock, Mock]:
+    def __create_mocked_future(future_result, is_delayed: bool = True) -> tuple[ClientID, ScalerFuture, Mock, Mock]:
         client_id = ClientID.generate_client_id()
         connector_agent = Mock(spec=SyncConnector)
         object_buffer = Mock(spec=ObjectBuffer)

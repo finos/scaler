@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Awaitable, Callable, Optional, Set
+from typing import Awaitable, Callable, Optional
 
 from scaler.config.common.security import SecurityConfig
 from scaler.config.types.address import AddressConfig
@@ -22,7 +22,7 @@ class YMQAsyncConnector(AsyncConnector):
         self._callback: Callable[[BaseMessage], Awaitable[None]] = callback
         self._socket: Optional[ConnectorSocket] = None
 
-        self._pending_tasks: Set[asyncio.Task] = set()
+        self._pending_tasks: set[asyncio.Task] = set()
 
     def __del__(self):
         self.destroy()

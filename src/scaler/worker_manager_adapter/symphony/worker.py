@@ -1,6 +1,6 @@
 import uuid
 from functools import partial
-from typing import Dict, Optional
+from typing import Optional
 
 from scaler.config.types.address import AddressConfig
 from scaler.worker_manager_adapter.symphony.heartbeat_manager import SymphonyProcessorStatusProvider
@@ -12,7 +12,7 @@ def create_symphony_worker(
     address: AddressConfig,
     object_storage_address: Optional[AddressConfig],
     service_name: str,
-    capabilities: Dict[str, int],
+    capabilities: dict[str, int],
     base_concurrency: int,
     heartbeat_interval_seconds: int,
     death_timeout_seconds: int,

@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 import cloudpickle
 
@@ -43,21 +43,21 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
         self._s3_prefix = s3_prefix
         self._job_timeout_seconds = job_timeout_seconds
 
-        self._task_id_to_batch_job_id: Dict[TaskID, str] = dict()
+        self._task_id_to_batch_job_id: dict[TaskID, str] = dict()
 
         self._batch_client: Any = None
         self._s3_client: Any = None
 
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="aws-hpc")
 
-        self._batch_pending: List[Tuple[Task, Any, List[Any], Future]] = []
+        self._batch_pending: list[tuple[Task, Any, list[Any], Future]] = []
         self._batch_window_start: float = 0.0
 
     def register(self, load_task_inputs: TaskDeserializer) -> None:
         self._loader = load_task_inputs
         self._initialize_aws_clients()
 
-    async def load_task_inputs(self, task: Task) -> Tuple[Any, List[Any]]:
+    async def load_task_inputs(self, task: Task) -> tuple[Any, list[Any]]:
         return await self._loader(task)
 
     def _initialize_aws_clients(self) -> None:
@@ -108,11 +108,11 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
         self._batch_pending.clear()
 
         batch = [(t, f, a) for t, f, a, _ in pending]
-        futures_map: Dict[TaskID, Future] = {t.taskId: fut for t, _, _, fut in pending}
+        futures_map: dict[TaskID, Future] = {t.taskId: fut for t, _, _, fut in pending}
 
         await self._flush_batch(batch, futures_map)
 
-    async def _flush_batch(self, batch: List[Tuple[Task, Any, List[Any]]], futures_map: Dict[TaskID, Future]) -> None:
+    async def _flush_batch(self, batch: list[tuple[Task, Any, list[Any]]], futures_map: dict[TaskID, Future]) -> None:
         try:
             if len(batch) >= ARRAY_JOB_MIN_BATCH_SIZE:
                 await self._submit_array_job(batch, futures_map)
@@ -135,7 +135,7 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
         return await loop.run_in_executor(self._executor, lambda: func(*args, **kwargs))
 
     async def _submit_array_job(
-        self, batch: List[Tuple[Task, Any, List[Any]]], futures_map: Dict[TaskID, Future]
+        self, batch: list[tuple[Task, Any, list[Any]]], futures_map: dict[TaskID, Future]
     ) -> None:
         """Submit multiple tasks as a single AWS Batch array job and monitor child results."""
         import gzip
@@ -148,7 +148,7 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
         array_size = len(batch)
 
         s3_prefix_array = f"{self._s3_prefix}/array/{array_id}"
-        index_to_task_id: Dict[int, TaskID] = {}
+        index_to_task_id: dict[int, TaskID] = {}
 
         for index, (task, function, arguments) in enumerate(batch):
             task_data = {
@@ -170,7 +170,7 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
         safe_func_name = re.sub(r"[^a-zA-Z0-9_-]", "_", func_name)[:50]
         job_name = f"{safe_func_name}-array-{array_id}"
 
-        submit_kwargs: Dict[str, Any] = dict(
+        submit_kwargs: dict[str, Any] = dict(
             jobName=job_name,
             jobQueue=self._job_queue,
             jobDefinition=self._job_definition,
@@ -211,15 +211,15 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
     async def _monitor_array_job(
         self,
         parent_job_id: str,
-        index_to_task_id: Dict[int, TaskID],
-        futures_map: Dict[TaskID, Future],
+        index_to_task_id: dict[int, TaskID],
+        futures_map: dict[TaskID, Future],
         s3_prefix_array: str,
     ) -> None:
         """Poll child job statuses and resolve each task future as jobs complete or fail."""
         import gzip
 
         poll_interval_seconds = 3.0
-        resolved: Set[int] = set()
+        resolved: set[int] = set()
         total = len(index_to_task_id)
 
         while len(resolved) < total:
@@ -297,7 +297,7 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
         except Exception as e:
             logger.warning(f"Failed to cleanup array payloads: {e}")
 
-    async def _submit_single_batch_job(self, task: Task, function: Any, arguments: List[Any]) -> str:
+    async def _submit_single_batch_job(self, task: Task, function: Any, arguments: list[Any]) -> str:
         import base64
         import gzip
         import re
@@ -332,7 +332,7 @@ class AWSBatchExecutionBackend(TaskInputLoader, ExecutionBackend):
             await self._run_in_executor(self._s3_client.put_object, Bucket=self._s3_bucket, Key=s3_key, Body=payload)
             encoded_payload = ""
 
-        submit_kwargs: Dict[str, Any] = dict(
+        submit_kwargs: dict[str, Any] = dict(
             jobName=job_name,
             jobQueue=self._job_queue,
             jobDefinition=self._job_definition,

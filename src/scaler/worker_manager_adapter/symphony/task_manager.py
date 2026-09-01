@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from concurrent.futures import Future
-from typing import Any, List, Tuple
+from typing import Any
 
 import cloudpickle
 
@@ -45,7 +45,7 @@ class SymphonyExecutionBackend(TaskInputLoader, ExecutionBackend):
     def register(self, load_task_inputs: TaskDeserializer) -> None:
         self._loader = load_task_inputs
 
-    async def load_task_inputs(self, task: Task) -> Tuple[Any, List[Any]]:
+    async def load_task_inputs(self, task: Task) -> tuple[Any, list[Any]]:
         return await self._loader(task)
 
     async def on_cancel(self, task_cancel: TaskCancel) -> None:

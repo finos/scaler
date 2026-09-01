@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from typing import Awaitable, Callable, Dict, List, Optional
+from typing import Awaitable, Callable, Optional
 
 import zmq
 import zmq.asyncio
@@ -28,8 +28,8 @@ class ZMQAsyncBinder(AsyncBinder):
 
         self._callback: Callable[[bytes, BaseMessage], Awaitable[None]] = callback
 
-        self._received: Dict[str, int] = defaultdict(lambda: 0)
-        self._sent: Dict[str, int] = defaultdict(lambda: 0)
+        self._received: dict[str, int] = defaultdict(lambda: 0)
+        self._sent: dict[str, int] = defaultdict(lambda: 0)
 
     def __del__(self):
         self.destroy()
@@ -60,7 +60,7 @@ class ZMQAsyncBinder(AsyncBinder):
         return self._address
 
     async def routine(self):
-        frames: List[Frame] = await self._socket.recv_multipart(copy=False)
+        frames: list[Frame] = await self._socket.recv_multipart(copy=False)
         if not self.__is_valid_message(frames):
             return
 
@@ -95,7 +95,7 @@ class ZMQAsyncBinder(AsyncBinder):
         self._socket.setsockopt(zmq.SNDHWM, 0)
         self._socket.setsockopt(zmq.RCVHWM, 0)
 
-    def __is_valid_message(self, frames: List[Frame]) -> bool:
+    def __is_valid_message(self, frames: list[Frame]) -> bool:
         if len(frames) != 2:
             logger.error(f"{self.__get_prefix()} received unexpected frames {frames}")
             return False

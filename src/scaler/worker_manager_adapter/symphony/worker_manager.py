@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import signal
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from scaler.config.section.symphony_worker_manager import SymphonyWorkerManagerConfig
 from scaler.worker_manager_adapter.capacity_coordinator import CapacityCoordinator
@@ -33,7 +33,7 @@ class SymphonyWorkerProvisioner(DeclarativeWorkerProvisioner):
         self._event_loop = config.worker_config.event_loop
         self._worker_manager_id = config.worker_manager_config.worker_manager_id.encode()
 
-        self._workers: List[WorkerProcess] = []
+        self._workers: list[WorkerProcess] = []
         self._capacity_coordinator = CapacityCoordinator(
             start_units=self.start_units,
             stop_units=self.stop_units,
@@ -46,7 +46,7 @@ class SymphonyWorkerProvisioner(DeclarativeWorkerProvisioner):
         return len(self._workers)
 
     async def set_desired_task_concurrency(
-        self, requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
+        self, requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
     ) -> None:
         task_concurrency = extract_desired_count(requests, self._capabilities)
         await self._capacity_coordinator.set_desired_unit_count(task_concurrency)

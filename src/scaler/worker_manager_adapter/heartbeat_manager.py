@@ -1,5 +1,5 @@
 import time
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 import psutil
 
@@ -22,7 +22,7 @@ class HeartbeatManager(Looper, HeartbeatManagerMixin):
     def __init__(
         self,
         object_storage_address: Optional[AddressConfig],
-        capabilities: Dict[str, int],
+        capabilities: dict[str, int],
         task_queue_size: int,
         worker_manager_id: bytes,
         processor_status_provider: ProcessorStatusProvider,
