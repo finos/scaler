@@ -36,7 +36,7 @@ DEFAULT_MAX_RETRY_TIMES: int = 8
 DEFAULT_INIT_RETRY_DELAY: int = 100  # milliseconds
 
 # YMQ wire-protocol constants (mirror src/cpp/scaler/ymq/configuration.h).
-_MAGIC_STRING: bytes = b"YMQ\x02"
+MAGIC_STRING: bytes = b"YMQ\x02"
 _HEADER_FORMAT: str = "<Q"  # uint64_t little-endian, matches C++ ``Header``
 _HEADER_SIZE: int = struct.calcsize(_HEADER_FORMAT)
 
@@ -534,7 +534,7 @@ class ConnectorSocket:
 
     def _send_handshake(self) -> None:
         identity_bytes = self.identity.encode("utf-8")
-        frame = _MAGIC_STRING + struct.pack(_HEADER_FORMAT, len(identity_bytes)) + identity_bytes
+        frame = MAGIC_STRING + struct.pack(_HEADER_FORMAT, len(identity_bytes)) + identity_bytes
         # Send the handshake as a single binary frame; no callback (handshake
         # failures will surface as a close event).
         self._raw_send(frame, None)
@@ -635,15 +635,15 @@ class ConnectorSocket:
     def _process_recv_buffer(self) -> None:
         # Consume the magic string first.
         if not self._magic_consumed:
-            if len(self._recv_buffer) < len(_MAGIC_STRING):
+            if len(self._recv_buffer) < len(MAGIC_STRING):
                 return
-            magic = bytes(self._recv_buffer[: len(_MAGIC_STRING)])
-            if magic != _MAGIC_STRING:
+            magic = bytes(self._recv_buffer[: len(MAGIC_STRING)])
+            if magic != MAGIC_STRING:
                 self._fail(
                     _make_exception(ErrorCode.InvalidAddressFormat, f"Invalid YMQ magic string from remote: {magic!r}")
                 )
                 return
-            del self._recv_buffer[: len(_MAGIC_STRING)]
+            del self._recv_buffer[: len(MAGIC_STRING)]
             self._magic_consumed = True
 
         # Drain framed messages.
@@ -727,4 +727,5 @@ __all__ = [
     "SysCallError",
     "DEFAULT_MAX_RETRY_TIMES",
     "DEFAULT_INIT_RETRY_DELAY",
+    "MAGIC_STRING",
 ]

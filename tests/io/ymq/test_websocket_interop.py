@@ -5,9 +5,7 @@ import unittest
 import websockets.asyncio.client
 import websockets.asyncio.server
 
-from scaler.io.ymq import BinderSocket, Bytes, ConnectorSocket, IOContext
-
-_MAGIC = b"YMQ\x02"
+from scaler.io.ymq import MAGIC_STRING, BinderSocket, Bytes, ConnectorSocket, IOContext
 
 
 def _encode_message(payload: bytes) -> bytes:
@@ -27,11 +25,11 @@ class TestWebSocketInterop(unittest.IsolatedAsyncioTestCase):
         address = await binder.bind_to("ws://127.0.0.1:0/")
 
         async with websockets.asyncio.client.connect(repr(address)) as ws:
-            await ws.send(_MAGIC)
+            await ws.send(MAGIC_STRING)
             await ws.send(_encode_message(b"py-ws-client"))
 
             magic = await ws.recv()
-            self.assertEqual(magic, _MAGIC)
+            self.assertEqual(magic, MAGIC_STRING)
 
             identity_frame = await ws.recv()
             assert isinstance(identity_frame, bytes)
@@ -56,12 +54,12 @@ class TestWebSocketInterop(unittest.IsolatedAsyncioTestCase):
         ymq_recv: asyncio.Future[bytes] = asyncio.get_running_loop().create_future()
 
         async def handle(ws: websockets.asyncio.server.ServerConnection) -> None:
-            self.assertEqual(await ws.recv(), _MAGIC)
+            self.assertEqual(await ws.recv(), MAGIC_STRING)
             identity_frame = await ws.recv()
             assert isinstance(identity_frame, bytes)
             self.assertEqual(_decode_message(identity_frame), b"connector")
 
-            await ws.send(_MAGIC)
+            await ws.send(MAGIC_STRING)
             await ws.send(_encode_message(b"py-ws-server"))
 
             msg_frame = await ws.recv()

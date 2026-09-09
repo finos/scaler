@@ -301,6 +301,14 @@ static int YMQ_exec(PyObject* pyModule)
     if (PyModule_AddIntConstant(pyModule, "DEFAULT_INIT_RETRY_DELAY", defaultClientInitRetryDelay.count()) < 0)
         return -1;
 
+    OwnedPyObject pyMagicString =
+        PyBytes_FromStringAndSize(reinterpret_cast<const char*>(magicString.data()), magicString.size());
+    if (!pyMagicString)
+        return -1;
+
+    if (PyModule_AddObjectRef(pyModule, "MAGIC_STRING", pyMagicString.get()) < 0)
+        return -1;
+
     PyObject* exceptionBases = PyTuple_Pack(1, PyExc_Exception);
     if (!exceptionBases)
         return -1;

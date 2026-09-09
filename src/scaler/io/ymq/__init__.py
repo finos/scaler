@@ -8,6 +8,7 @@ __all__ = [
     "ConnectorSocket",
     "ErrorCode",
     "IOContext",
+    "MAGIC_STRING",
     "Message",
     "TLSConfig",
     # Exception types
@@ -26,6 +27,7 @@ __all__ = [
 # ...) is unaffected.
 if sys.platform == "emscripten":
     from scaler.io.ymq._ymq_wasm import (  # noqa: F401
+        MAGIC_STRING,
         Address,
         AddressType,
         BinderSocket,
@@ -45,6 +47,7 @@ if sys.platform == "emscripten":
     )
 else:
     from scaler.io.ymq._ymq import (  # Exception types
+        MAGIC_STRING,
         Address,
         AddressType,
         Bytes,

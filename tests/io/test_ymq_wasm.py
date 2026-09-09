@@ -27,7 +27,6 @@ from scaler.io.ymq._ymq_wasm import (
     YMQException,
 )
 
-_MAGIC = b"YMQ\x02"
 _HEADER = "<Q"
 
 
@@ -163,10 +162,11 @@ class HandshakeTest(unittest.TestCase):
         _open(socket)
         self.assertEqual(len(socket._ws.sent), 1)
         sent = socket._ws.sent[0]
-        self.assertEqual(sent[:4], _MAGIC)
-        (length,) = struct.unpack_from(_HEADER, sent, 4)
+        magic_size = len(_ymq_wasm.MAGIC_STRING)
+        self.assertEqual(sent[:magic_size], _ymq_wasm.MAGIC_STRING)
+        (length,) = struct.unpack_from(_HEADER, sent, magic_size)
         self.assertEqual(length, len(b"my-id"))
-        self.assertEqual(sent[4 + 8 :], b"my-id")
+        self.assertEqual(sent[magic_size + struct.calcsize(_HEADER) :], b"my-id")
 
     def test_remote_handshake_consumed_silently(self) -> None:
         # Remote sends magic + identity; should not surface as a Message.
@@ -174,7 +174,7 @@ class HandshakeTest(unittest.TestCase):
         _open(socket)
         received: List[Any] = []
         socket.recv_message_with_callback(lambda r: received.append(r))
-        _feed(socket, _MAGIC + _frame(b"remote-id"))
+        _feed(socket, _ymq_wasm.MAGIC_STRING + _frame(b"remote-id"))
         self.assertEqual(received, [])  # no message yet
         self.assertEqual(socket._remote_identity, b"remote-id")
         self.assertTrue(socket._handshake_complete)
@@ -194,7 +194,7 @@ class FramingTest(unittest.TestCase):
     def _open_handshaken(self) -> ConnectorSocket:
         socket = _make_socket()
         _open(socket)
-        _feed(socket, _MAGIC + _frame(b"remote"))
+        _feed(socket, _ymq_wasm.MAGIC_STRING + _frame(b"remote"))
         return socket
 
     def test_send_message_frames_payload(self) -> None:
@@ -268,7 +268,7 @@ class FramingTest(unittest.TestCase):
         _open(socket)
         received: List[Any] = []
         socket.recv_message_with_callback(received.append)
-        _feed(socket, _MAGIC + _frame(b"remote") + _frame(b"first"))
+        _feed(socket, _ymq_wasm.MAGIC_STRING + _frame(b"remote") + _frame(b"first"))
         self.assertEqual(len(received), 1)
         self.assertEqual(received[0].payload.data, b"first")
 
@@ -334,7 +334,7 @@ class RemoteCloseTest(unittest.TestCase):
     def test_buffered_messages_still_delivered_after_close(self) -> None:
         socket = _make_socket()
         _open(socket)
-        _feed(socket, _MAGIC + _frame(b"remote") + _frame(b"buffered"))
+        _feed(socket, _ymq_wasm.MAGIC_STRING + _frame(b"remote") + _frame(b"buffered"))
 
         class _Evt:
             code = 1000
@@ -412,7 +412,7 @@ class SyncHelpersTest(unittest.TestCase):
         socket = _make_socket()
         _open(socket)
         # Feed a complete inbound stream: magic, peer identity, then payload.
-        _feed(socket, _MAGIC + _frame(b"peer-identity") + _frame(b"buffered"))
+        _feed(socket, _ymq_wasm.MAGIC_STRING + _frame(b"peer-identity") + _frame(b"buffered"))
         msg = socket.recv_message_sync()
         self.assertEqual(msg.payload.data, b"buffered")
 

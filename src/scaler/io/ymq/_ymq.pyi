@@ -12,6 +12,9 @@ except ImportError:
 DEFAULT_MAX_RETRY_TIMES: int
 DEFAULT_INIT_RETRY_DELAY: int
 
+MAGIC_STRING: bytes
+"""The bytes every YMQ connection starts with, before any framed message."""
+
 class Bytes(Buffer):
     data: bytes | None
     """Data of the Bytes object"""
