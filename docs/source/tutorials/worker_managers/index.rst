@@ -69,6 +69,10 @@ Worker Managers Overview
      - Runs each task as a dedicated OCI Container Instance job.
      - Concurrency-limited
      - OCI Container Instances + Object Storage
+   * - :doc:`Kubernetes <k8s_raw>`
+     - Provisions full Scaler worker processes as bare Kubernetes Pods.
+     - Dynamic (scheduler-driven)
+     - Kubernetes
 
 Although worker managers target different infrastructures, many configuration options are shared.
 See :doc:`Common Worker Manager Parameters <common_parameters>` for these shared settings.
@@ -90,4 +94,5 @@ The :ref:`scaler <cmd-scaler>` command boots the full stack from a single TOML c
     symphony
     oci_raw
     oci_hpc
+    k8s_raw
     common_parameters

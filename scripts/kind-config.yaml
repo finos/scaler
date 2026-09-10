@@ -1,0 +1,16 @@
+# KinD cluster configuration for scaler k8s_raw integration tests.
+#
+# Single control-plane node with one worker node.
+# extraPortMappings are not needed — pods connect back to the host
+# via the KinD docker bridge network IP (detected at runtime by kind-test.sh).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: scaler-test
+nodes:
+  - role: control-plane
+  - role: worker
+networking:
+  # Use the default KinD bridge (172.18.0.0/16).
+  # The gateway (172.18.0.1) is the host IP reachable from pods.
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"

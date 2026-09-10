@@ -13,6 +13,7 @@ from scaler.cluster.object_storage_server import ObjectStorageServerProcess
 from scaler.config.config_class import ConfigClass
 from scaler.config.section.aws_hpc_worker_manager import AWSBatchWorkerManagerConfig
 from scaler.config.section.ecs_worker_manager import ECSWorkerManagerConfig
+from scaler.config.section.kubernetes_worker_manager import KubernetesWorkerManagerConfig
 from scaler.config.section.native_worker_manager import NativeWorkerManagerConfig
 from scaler.config.section.object_storage_server import ObjectStorageServerConfig
 from scaler.config.section.oci_hpc_worker_manager import OCIHPCWorkerManagerConfig
@@ -85,6 +86,10 @@ def _run_worker_manager(config: WorkerManagerUnion) -> None:
         from scaler.worker_manager_adapter.oci_hpc.worker_manager import OCIHPCWorkerManager
 
         OCIHPCWorkerManager(config).run()
+    elif isinstance(config, KubernetesWorkerManagerConfig):
+        from scaler.worker_manager_adapter.kubernetes.worker_manager import KubernetesWorkerManager
+
+        KubernetesWorkerManager(config).run()
 
 
 def _run_gui(config: WebGUIConfig) -> None:

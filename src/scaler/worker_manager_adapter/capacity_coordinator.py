@@ -75,6 +75,17 @@ class CapacityCoordinator:
         if self._active_reconcile_task is None:
             self._active_reconcile_task = asyncio.create_task(self._reconcile())
 
+    async def request_reconcile(self) -> None:
+        """Unconditionally trigger a reconciliation pass.
+
+        Unlike set_desired_unit_count, this never early-returns. Use it when the
+        active unit count has changed externally (e.g. a dead pod was removed
+        from tracking) and the coordinator needs to re-evaluate the delta.
+        """
+        self._reconcile_needed.set()
+        if self._active_reconcile_task is None:
+            self._active_reconcile_task = asyncio.create_task(self._reconcile())
+
     def cancel(self) -> None:
         """Stop the reconcile task. Safe to call multiple times."""
         self._stop.set()

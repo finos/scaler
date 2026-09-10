@@ -58,11 +58,15 @@ orb = [
 oci = [
     "oci==2.185.1",
 ]
+kubernetes = [
+    "kubernetes>=28.0.0",
+]
 all = [
     "opengris-scaler[aws]",
     # graphblas need compile on 3.14, and this python condition prevents up from building 3.14 wheel, comment it out for now
     # "opengris-scaler[graphblas]; python_version <= '3.13'",
     "opengris-scaler[gui]",
+    "opengris-scaler[kubernetes]",
     "opengris-scaler[orb]",
     "opengris-scaler[oci]",
     "opengris-scaler[uvloop]",
