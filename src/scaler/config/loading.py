@@ -35,13 +35,8 @@ def _toml_section_defaults(section_data: dict[str, Any], cls: type) -> dict[str,
     ConfigClass fields), so unrelated TOML keys are silently ignored.
     """
     # Map normalized TOML key -> argparse dest (field name).
-<<<<<<< HEAD
-    key_to_dest: Dict[str, str] = {}
-    for f in dataclasses.fields(cls):
-=======
     key_to_dest: dict[str, str] = {}
     for f in dataclasses.fields(cls):  # type: ignore[arg-type]
->>>>>>> f880ecc (refactor(typing): replace deprecated typing aliases with built-in generics (#202))
         if is_config_class(f.type):
             for ff in dataclasses.fields(f.type):  # type: ignore[arg-type]
                 long = ff.metadata.get("long", f"--{ff.name.replace('_', '-')}")
@@ -64,13 +59,8 @@ def _env_defaults(cls: type) -> dict[str, Any]:
     Applies the same type coercion that argparse would use for CLI values,
     so the value stored as a default is already the correct Python type.
     """
-<<<<<<< HEAD
-    result: Dict[str, Any] = {}
-    for field in dataclasses.fields(cls):
-=======
     result: dict[str, Any] = {}
     for field in dataclasses.fields(cls):  # type: ignore[arg-type]
->>>>>>> f880ecc (refactor(typing): replace deprecated typing aliases with built-in generics (#202))
         if is_config_class(field.type):
             result.update(_env_defaults(field.type))  # type: ignore[arg-type]
             continue

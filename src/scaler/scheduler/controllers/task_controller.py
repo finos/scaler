@@ -99,11 +99,7 @@ class VanillaTaskController(TaskController, Looper, Reporter):
         self._task_id_to_task: dict[TaskID, Task] = dict()
         self._task_state_manager: TaskStateManager = TaskStateManager(debug=True)
 
-<<<<<<< HEAD
-        self._unassigned: Deque[TaskID] = deque()
-=======
         self._unassigned: deque[TaskID] = deque()  # type: ignore[misc]
->>>>>>> f880ecc (refactor(typing): replace deprecated typing aliases with built-in generics (#202))
 
     def register(
         self,
