@@ -64,3 +64,15 @@ else:
         YMQException,
     )
     from scaler.io.ymq.sockets import BinderSocket, ConnectorSocket  # noqa: F401
+
+ErrorCode.__module__ = __name__
+for exception_type in (
+    YMQException,
+    ConnectorSocketClosedByRemoteEndError,
+    InvalidAddressFormatError,
+    InvalidPortFormatError,
+    RemoteEndDisconnectedOnSocketWithoutGuaranteedDeliveryError,
+    SocketStopRequestedError,
+    SysCallError,
+):
+    exception_type.__module__ = __name__

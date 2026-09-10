@@ -1,6 +1,9 @@
 import array
+import pickle
 import unittest
 from enum import IntEnum
+
+import cloudpickle
 
 from scaler.io.utility import deserialize, serialize
 from scaler.io.ymq import Address, AddressType, Bytes, ErrorCode, IOContext, Message, SysCallError, YMQException
@@ -21,6 +24,30 @@ class TestTypes(unittest.TestCase):
         self.assertEqual(exc.message, "oh no")
         self.assertIsInstance(exc, YMQException)
         self.assertIsInstance(exc, SysCallError)
+
+    def test_exception_pickle_round_trip(self):
+        for exception_type in (YMQException, SysCallError):
+            with self.subTest(exception_type=exception_type):
+                original = exception_type(ErrorCode.SysCallError, "oh no")
+
+                restored = pickle.loads(pickle.dumps(original))
+
+                self.assertIs(type(restored), exception_type)
+                self.assertEqual(restored.args, (ErrorCode.SysCallError, "oh no"))
+                self.assertEqual(restored.code, ErrorCode.SysCallError)
+                self.assertEqual(restored.message, "oh no")
+
+    def test_exception_cloudpickle_round_trip(self):
+        for exception_type in (YMQException, SysCallError):
+            with self.subTest(exception_type=exception_type):
+                original = exception_type(ErrorCode.SysCallError, "oh no")
+
+                restored = cloudpickle.loads(cloudpickle.dumps(original))
+
+                self.assertIs(type(restored), exception_type)
+                self.assertEqual(restored.args, (ErrorCode.SysCallError, "oh no"))
+                self.assertEqual(restored.code, ErrorCode.SysCallError)
+                self.assertEqual(restored.message, "oh no")
 
     def test_error_code(self):
         self.assertTrue(issubclass(ErrorCode, IntEnum))
