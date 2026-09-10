@@ -89,8 +89,8 @@ job queue, and job definition):
 
 .. code-block:: bash
 
-   python -m scaler.worker_manager_adapter.aws_hpc.utility.provisioner provision --region us-east-1 --prefix scaler-batch --vcpus 1 --memory 2048 --max-vcpus 256
-   source tests/worker_manager_adapter/aws_hpc/.scaler_aws_hpc.env
+   python -m scaler.worker_manager.proxy.aws_batch.tools.provision_infrastructure provision --region us-east-1 --prefix scaler-batch --vcpus 1 --memory 2048 --max-vcpus 256
+   source tests/worker_manager/proxy/aws_batch/.scaler_aws_hpc.env
 
 The provisioner also builds and pushes the worker image from ``Dockerfile.batch``.
 The image must use the same Python version as the client and include ``cloudpickle`` and ``boto3``.
@@ -153,7 +153,7 @@ Scaler includes a provisioner script that creates all required AWS infrastructur
 
 .. code-block:: bash
 
-   python -m scaler.worker_manager_adapter.aws_hpc.utility.provisioner provision \
+   python -m scaler.worker_manager.proxy.aws_batch.tools.provision_infrastructure provision \
        --region us-east-1 \
        --prefix scaler-batch \
        --vcpus 1 \
@@ -170,14 +170,14 @@ This will:
 
 The provisioner saves its configuration to:
 
-* ``tests/worker_manager_adapter/aws_hpc/.scaler_aws_hpc.env`` — shell environment file
-* ``tests/worker_manager_adapter/aws_hpc/.scaler_aws_batch_config.json`` — full resource details (used for cleanup)
+* ``tests/worker_manager/proxy/aws_batch/.scaler_aws_hpc.env`` — shell environment file
+* ``tests/worker_manager/proxy/aws_batch/.scaler_aws_batch_config.json`` — full resource details (used for cleanup)
 
 Source the env file to set variables for subsequent commands:
 
 .. code-block:: bash
 
-   source tests/worker_manager_adapter/aws_hpc/.scaler_aws_hpc.env
+   source tests/worker_manager/proxy/aws_batch/.scaler_aws_hpc.env
 
 **Memory configuration:** Memory is rounded to the nearest multiple of 2048 MB and 90% is allocated to the container. For example, ``--memory 4000`` → 4096 MB total → 3686 MB effective.
 
@@ -258,12 +258,12 @@ Use a single TOML configuration file to start the object storage server, schedul
 
 .. code-block:: bash
 
-   source tests/worker_manager_adapter/aws_hpc/.scaler_aws_hpc.env
+   source tests/worker_manager/proxy/aws_batch/.scaler_aws_hpc.env
    sed -e "s|scaler-batch-queue|${SCALER_JOB_QUEUE}|" \
        -e "s|scaler-batch-job|${SCALER_JOB_DEFINITION}|" \
        -e "s|scaler-batch-ACCOUNT_ID-us-east-1|${SCALER_S3_BUCKET}|" \
        -e "s|aws_region = \"us-east-1\"|aws_region = \"${SCALER_AWS_REGION}\"|" \
-       tests/worker_manager_adapter/aws_hpc/scaler_aws_hpc_batch.toml > /tmp/config.toml
+       tests/worker_manager/proxy/aws_batch/scaler_aws_batch.toml > /tmp/config.toml
 
 2. Start all processes:
 
@@ -271,7 +271,7 @@ Use a single TOML configuration file to start the object storage server, schedul
 
    scaler /tmp/config.toml
 
-See ``tests/worker_manager_adapter/aws_hpc/scaler_aws_hpc_batch.toml`` for the template.
+See ``tests/worker_manager/proxy/aws_batch/scaler_aws_batch.toml`` for the template.
 
 Alternatively, start each process separately:
 
@@ -293,7 +293,7 @@ With all processes running (from Step 3), submit tasks:
 
 .. code-block:: bash
 
-   python tests/worker_manager_adapter/aws_hpc/aws_hpc_test_harness.py \
+   python tests/worker_manager/proxy/aws_batch/aws_batch_test_harness.py \
        --scheduler tcp://127.0.0.1:2345 --test all
 
 Or use the Scaler client directly:
@@ -317,7 +317,7 @@ To tear down all provisioned AWS resources:
 
 .. code-block:: bash
 
-   python -m scaler.worker_manager_adapter.aws_hpc.utility.provisioner cleanup \
+   python -m scaler.worker_manager.proxy.aws_batch.tools.provision_infrastructure cleanup \
        --region us-east-1 \
        --prefix scaler-batch
 

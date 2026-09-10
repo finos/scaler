@@ -126,7 +126,7 @@ After services are up, use a client to submit tasks to OCI-provisioned workers.
 Build the Worker Image
 ----------------------
 
-A ``Dockerfile`` is provided at ``src/scaler/worker_manager_adapter/oci_raw/utility/Dockerfile.container_instance``. It uses a minimal Debian base with ``uv`` for fast, wheel-based installs. The Scaler package and your task dependencies are installed at container startup via ``requirements_txt``, so the base image only needs ``uv`` and Bash.
+A ``Dockerfile`` is provided at ``src/scaler/worker_manager/nested/oci/remote/Dockerfile``. It uses a minimal Debian base with ``uv`` for fast, wheel-based installs. The Scaler package and your task dependencies are installed at container startup via ``requirements_txt``, so the base image only needs ``uv`` and Bash.
 
 Build and push to your OCIR repository from the repository root:
 
@@ -137,7 +137,7 @@ Build and push to your OCIR repository from the repository root:
 
    # Build and push
    docker build \
-       -f src/scaler/worker_manager_adapter/oci_raw/utility/Dockerfile.container_instance \
+       -f src/scaler/worker_manager/nested/oci/remote/Dockerfile \
        -t us-ashburn-1.ocir.io/<namespace>/<repo>:latest .
    docker push us-ashburn-1.ocir.io/<namespace>/<repo>:latest
 

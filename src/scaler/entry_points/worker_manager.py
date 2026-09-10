@@ -99,33 +99,33 @@ def main() -> None:
     register_event_loop(wm_config.worker_config.event_loop)
 
     if isinstance(wm_config, NativeWorkerManagerConfig):
-        from scaler.worker_manager_adapter.baremetal.native import NativeWorkerManager
+        from scaler.worker_manager.native.worker_manager import NativeWorkerManager
 
         NativeWorkerManager(wm_config).run()
     elif isinstance(wm_config, SymphonyWorkerManagerConfig):
-        from scaler.worker_manager_adapter.symphony.worker_manager import SymphonyWorkerManager
+        from scaler.worker_manager.proxy.symphony.worker_manager import SymphonyWorkerManager
 
         SymphonyWorkerManager(wm_config).run()
     elif isinstance(wm_config, ECSWorkerManagerConfig):
-        from scaler.worker_manager_adapter.aws_raw.ecs import ECSWorkerManager
+        from scaler.worker_manager.nested.aws_ecs.worker_manager import ECSWorkerManager
 
         ECSWorkerManager(wm_config).run()
     elif isinstance(wm_config, AWSBatchWorkerManagerConfig):
-        from scaler.worker_manager_adapter.aws_hpc.worker_manager import AWSHPCWorkerManager
+        from scaler.worker_manager.proxy.aws_batch.worker_manager import AWSBatchWorkerManager
 
-        AWSHPCWorkerManager(wm_config).run()
+        AWSBatchWorkerManager(wm_config).run()
     elif isinstance(wm_config, ORBAWSEC2WorkerManagerConfig):
-        from scaler.worker_manager_adapter.orb_aws_ec2.worker_manager import ORBAWSEC2WorkerManager
+        from scaler.worker_manager.nested.orb_aws_ec2.worker_manager import ORBAWSEC2WorkerManager
 
         ORBAWSEC2WorkerManager(wm_config).run()
     elif isinstance(wm_config, OCIRawWorkerManagerConfig):
-        from scaler.worker_manager_adapter.oci_raw.worker_manager import OCIRawWorkerManager
+        from scaler.worker_manager.nested.oci.worker_manager import OCIWorkerManager as NestedOCIWorkerManager
 
-        OCIRawWorkerManager(wm_config).run()
+        NestedOCIWorkerManager(wm_config).run()
     elif isinstance(wm_config, OCIHPCWorkerManagerConfig):
-        from scaler.worker_manager_adapter.oci_hpc.worker_manager import OCIHPCWorkerManager
+        from scaler.worker_manager.proxy.oci.worker_manager import OCIWorkerManager as ProxyOCIWorkerManager
 
-        OCIHPCWorkerManager(wm_config).run()
+        ProxyOCIWorkerManager(wm_config).run()
 
 
 if __name__ == "__main__":

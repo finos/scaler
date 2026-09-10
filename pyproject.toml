@@ -144,7 +144,11 @@ cmake.define.CMAKE_CXX_COMPILER = ""
 python_version = "3.10"
 # keeps src/ on the search path when it is not itself in the build, so that checking a single file
 # under tests/ still resolves scaler.protocol.capnp instead of silently degrading it to Any
-mypy_path = "src"
+# "stubs" carries hand-written stubs for third-party modules that ship without type information. A stub
+# has to be found under the name the code imports it by, which means putting its directory on mypy_path,
+# which in turn gives a stub inside a package a second, dotted module name. Excluding the directory from
+# collection leaves the import lookup as the only way mypy reaches it, so the two names cannot collide.
+mypy_path = "src:src/scaler/worker_manager/proxy/symphony/stubs"
 no_strict_optional = true
 check_untyped_defs = true
 ignore_missing_imports = true
@@ -161,6 +165,9 @@ exclude = [
     "^boost.*$",
     "^scripts.*$",
     ".*object_storage.*$",
+    # reached only through the mypy_path lookup for "import soamapi"; collecting it as well
+    # would give the same file a second, dotted module name, which mypy rejects
+    "scaler/worker_manager/proxy/symphony/stubs/",
 ]
 
 [tool.flake8]

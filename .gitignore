@@ -47,8 +47,8 @@ orb/metrics/
 .scaler_aws_hpc.env
 .scaler_oci_config.json
 .scaler_oci_hpc.env
-tests/worker_manager_adapter/oci_hpc/.scaler_oci_config.json
-tests/worker_manager_adapter/oci_hpc/.scaler_oci_hpc.env
+tests/worker_manager/proxy/oci/.scaler_oci_config.json
+tests/worker_manager/proxy/oci/.scaler_oci_hpc.env
 
 # Per-user agent preferences (not committed)
 .agents-local.md

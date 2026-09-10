@@ -16,7 +16,7 @@ OpenGRIS Scaler is an efficient, lightweight, and reliable distributed computati
 
 ## Key Technologies
 
-- **Python 3.8+**: Primary implementation language
+- **Python 3.10+**: Primary implementation language (`requires-python` in `pyproject.toml` is the source of truth)
 - **C++20**: Performance-critical components
 - **Cap'n Proto**: Serialization and messaging protocol
 - **asyncio/libuv**: Asynchronous event loops (Python / C++)
@@ -35,7 +35,7 @@ scaler/
 │   │   ├── entry_points/    # CLI entry points
 │   │   ├── protocol/        # Protocol definitions (Cap'n Proto)
 │   │   ├── utility/
-│   │   ├── worker_manager_adapter/
+│   │   ├── worker_manager/
 │   │   └── .../
 │   └── cpp/scaler/          # C++ components
 │       ├── object_storage/

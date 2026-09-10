@@ -24,6 +24,15 @@ class SchedulerError(Exception):
     pass
 
 
+class SymphonyTaskError(Exception):
+    """IBM Spectrum Symphony failed a task, or returned an output the worker manager cannot read.
+
+    The message renders the Symphony failure as text: the client that receives it has no Symphony
+    installation, so a ``soamapi`` exception would arrive there as an import error instead."""
+
+    pass
+
+
 class TaskExceptionNotSerializableError(Exception):
     """A task raised an exception that could not be pickled back to the client; the message preserves the
     original exception's type name and string so the failure is still meaningful."""

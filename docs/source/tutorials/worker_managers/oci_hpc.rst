@@ -35,7 +35,7 @@ Provision required OCI resources (Object Storage bucket, Dynamic Group, IAM poli
 
 .. code-block:: bash
 
-   python -m scaler.worker_manager_adapter.oci_hpc.utility.provisioner provision \
+   python -m scaler.worker_manager.proxy.oci.tools.provision_infrastructure provision \
        --compartment-id ocid1.compartment.oc1..example \
        --region us-ashburn-1 \
        --availability-domain AD-1 \
@@ -45,14 +45,14 @@ This writes a ``.scaler_oci_config.json`` file in the current directory. Build a
 
 .. code-block:: bash
 
-   python -m scaler.worker_manager_adapter.oci_hpc.utility.provisioner \
+   python -m scaler.worker_manager.proxy.oci.tools.provision_infrastructure \
        build-image --config .scaler_oci_config.json
 
 Validate all phases with the test harness:
 
 .. code-block:: bash
 
-   python tests/worker_manager_adapter/oci_hpc/oci_hpc_test_harness.py \
+   python tests/worker_manager/proxy/oci/oci_test_harness.py \
        --config .scaler_oci_config.json
 
 Start all services:

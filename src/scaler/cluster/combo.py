@@ -35,7 +35,7 @@ from scaler.config.types.address import AddressConfig, SocketType
 from scaler.config.types.worker import WorkerCapabilities
 from scaler.utility.network_util import get_available_tcp_port
 from scaler.utility.process_bootstrap import bootstrap_process
-from scaler.worker_manager_adapter.baremetal.native import NativeWorkerManager
+from scaler.worker_manager.native.worker_manager import NativeWorkerManager
 
 logger = logging.getLogger(__name__)
 

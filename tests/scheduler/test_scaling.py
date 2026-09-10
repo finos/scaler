@@ -671,7 +671,7 @@ def _create_worker_manager_heartbeat(
 def _run_native_worker_manager(
     scheduler_address: str, max_task_concurrency: int = 4, worker_manager_id: str = "test_manager"
 ) -> None:
-    from scaler.worker_manager_adapter.baremetal.native import NativeWorkerManager
+    from scaler.worker_manager.native.worker_manager import NativeWorkerManager
 
     manager = NativeWorkerManager(
         NativeWorkerManagerConfig(
