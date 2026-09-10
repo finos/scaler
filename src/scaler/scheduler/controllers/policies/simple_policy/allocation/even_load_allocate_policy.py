@@ -1,10 +1,11 @@
 import logging
 import math
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple, cast
 
 from scaler.protocol.capnp import Task
 from scaler.scheduler.controllers.policies.simple_policy.allocation.mixins import TaskAllocatePolicy
 from scaler.utility.identifiers import TaskID, WorkerID
+from scaler.utility.metadata.task_flags import is_nested_task
 from scaler.utility.queues.async_priority_queue import AsyncPriorityQueue
 from scaler.utility.queues.indexed_queue import IndexedQueue
 
@@ -126,7 +127,13 @@ class EvenLoadAllocatePolicy(TaskAllocatePolicy):
             return WorkerID.invalid_worker_id()
 
         count, worker = self._worker_queue.get_nowait()
-        if count == self._workers_to_queue_size[worker]:
+
+        # A nested task is exempt from the per-worker queue size. The queue size is admission control for new
+        # work, but a nested task is not new work: a task that already holds a queue slot is blocked until it
+        # finishes. Turning it away when every queue is full deadlocks the cluster, because the slots can only
+        # be released by the very tasks that are waiting. It does not add concurrency either -- the worker
+        # suspends the lower-priority parent to run it.
+        if count >= self._workers_to_queue_size[worker] and not is_nested_task(task):
             self._worker_queue.put_nowait([count, worker])
             return WorkerID.invalid_worker_id()
 
@@ -149,14 +156,17 @@ class EvenLoadAllocatePolicy(TaskAllocatePolicy):
         if not len(self._worker_queue):
             return False
 
-        count, worker = self._worker_queue.max_priority_item()
-        if count == self._workers_to_queue_size[worker]:
+        # this queue's priorities are the workers' queued task counts, which a nested task can push past
+        # the queue size
+        count, worker = cast(Tuple[int, WorkerID], self._worker_queue.max_priority_item())
+        if count >= self._workers_to_queue_size[worker]:
             return False
 
         return True
 
     def statistics(self) -> Dict:
         return {
-            worker: {"free": self._workers_to_queue_size[worker] - len(tasks), "sent": len(tasks)}
+            # a nested task can push a worker past its queue size
+            worker: {"free": max(0, self._workers_to_queue_size[worker] - len(tasks)), "sent": len(tasks)}
             for worker, tasks in self._workers_to_task_ids.items()
         }

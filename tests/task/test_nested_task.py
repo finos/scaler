@@ -1,3 +1,4 @@
+import concurrent.futures
 import unittest
 
 from scaler import Client, SchedulerClusterCombo
@@ -8,6 +9,9 @@ from tests.utility.utility import logging_test_name
 N_TASKS = 30
 N_WORKERS = 3
 assert N_TASKS >= N_WORKERS
+
+# how long to wait before calling a stalled cluster deadlocked; the tasks themselves take about a second
+DEADLOCK_TIMEOUT_SECONDS = 60
 
 
 class TestNestedTask(unittest.TestCase):
@@ -46,6 +50,29 @@ class TestNestedTask(unittest.TestCase):
         with Client(self.address) as client:
             result = client.submit(nested_task_explicit_address, self.address, 7).result()
             self.assertEqual(result, 49)
+
+    def test_nested_task_when_every_worker_queue_is_full(self) -> None:
+        """Nested tasks must run even when the parents have filled every worker's task queue.
+
+        The parents cannot free their queue slots until their nested tasks complete, so if the scheduler
+        holds the nested tasks back for want of a free slot, nothing in the cluster can make progress.
+        """
+        n_workers = 2
+        queue_size = 2
+        address = f"tcp://127.0.0.1:{get_available_tcp_port()}"
+        cluster = SchedulerClusterCombo(
+            address=address, n_workers=n_workers, per_worker_task_queue_size=queue_size, event_loop="builtin"
+        )
+        self.addCleanup(cluster.shutdown)
+
+        with Client(address) as client:
+            # exactly fills every queue, so every task the nested clients submit needs a slot that only a
+            # blocked parent can release
+            futures = [client.submit(nested_task_auto_address, value) for value in range(n_workers * queue_size)]
+            _, not_done = concurrent.futures.wait(futures, timeout=DEADLOCK_TIMEOUT_SECONDS)
+
+            self.assertEqual(not_done, set(), "nested tasks did not run while every worker task queue was full")
+            self.assertEqual([future.result() for future in futures], [value**2 for value in range(len(futures))])
 
 
 def parent_task_arg_client(client: Client) -> int:

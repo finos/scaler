@@ -10,6 +10,7 @@ from sortedcontainers import SortedList
 from scaler.protocol.capnp import Task
 from scaler.scheduler.controllers.policies.simple_policy.allocation.mixins import TaskAllocatePolicy
 from scaler.utility.identifiers import TaskID, WorkerID
+from scaler.utility.metadata.task_flags import is_nested_task
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +243,14 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
     def assign_task(self, task: Task) -> WorkerID:
         # Worst-case time complexity is O(n_workers * len(task.capabilities))
 
-        available_workers = self.__get_available_workers_for_capabilities(task.capabilities)
+        # A nested task is exempt from the per-worker queue size. The queue size is admission control for new
+        # work, but a nested task is not new work: a task that already holds a queue slot is blocked until it
+        # finishes. Turning it away when every queue is full deadlocks the cluster, because the slots can only
+        # be released by the very tasks that are waiting. It does not add concurrency either -- the worker
+        # suspends the lower-priority parent to run it.
+        available_workers = self.__get_available_workers_for_capabilities(
+            task.capabilities, ignore_queue_size=is_nested_task(task)
+        )
 
         if len(available_workers) == 0:
             return WorkerID.invalid_worker_id()
@@ -273,11 +281,17 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
 
     def statistics(self) -> Dict:
         return {
-            worker.worker_id: {"free": worker.n_free(), "sent": worker.n_tasks(), "capabilities": worker.capabilities}
+            worker.worker_id: {
+                "free": max(0, worker.n_free()),  # a nested task can push a worker past its queue size
+                "sent": worker.n_tasks(),
+                "capabilities": worker.capabilities,
+            }
             for worker in self._worker_id_to_worker.values()
         }
 
-    def __get_available_workers_for_capabilities(self, capabilities: Dict[str, int]) -> List[_WorkerHolder]:
+    def __get_available_workers_for_capabilities(
+        self, capabilities: Dict[str, int], ignore_queue_size: bool = False
+    ) -> List[_WorkerHolder]:
         # Worst-case time complexity is O(n_workers * len(capabilities))
 
         if any(capability not in self._capability_to_worker_ids for capability in capabilities.keys()):
@@ -289,5 +303,8 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
             matching_worker_ids.intersection_update(self._capability_to_worker_ids[capability])
 
         matching_workers = [self._worker_id_to_worker[worker_id] for worker_id in matching_worker_ids]
+
+        if ignore_queue_size:
+            return matching_workers
 
         return [worker for worker in matching_workers if worker.n_free() > 0]

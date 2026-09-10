@@ -8,6 +8,7 @@ from scaler.scheduler.controllers.policies.simple_policy.allocation.capability_a
 )
 from scaler.utility.identifiers import ClientID, TaskID, WorkerID
 from scaler.utility.logging.utility import setup_logger
+from scaler.utility.metadata.task_flags import TaskFlags
 from tests.utility.utility import logging_test_name
 
 MAX_TASKS_PER_WORKER = 10
@@ -222,6 +223,42 @@ class TestCapabilityAllocatePolicy(unittest.TestCase):
         advice = self.__balance_with_timeout(allocator, timeout_seconds=15)
         self.assertIsNotNone(advice, "balance() did not terminate -- the balancer is stuck in an infinite loop")
 
+    def test_nested_task_is_assigned_when_every_queue_is_full(self):
+        """A nested task must be assignable even when every worker's queue is full.
+
+        Its parent already occupies one of those queue slots and cannot release it until the nested task
+        runs, so refusing the nested task deadlocks the cluster.
+        """
+        allocator = CapabilityAllocatePolicy()
+
+        allocator.add_worker(WorkerID(b"worker_1"), {}, MAX_TASKS_PER_WORKER)
+        allocator.add_worker(WorkerID(b"worker_2"), {}, MAX_TASKS_PER_WORKER)
+
+        for i in range(MAX_TASKS_PER_WORKER * 2):
+            self.assertTrue(allocator.assign_task(self.__create_task(TaskID(f"task_{i}".encode()), {})).is_valid())
+
+        # A regular task is turned away, and waits in the scheduler's unassigned queue.
+        top_level_task = self.__create_task(TaskID(b"task_top_level"), {})
+        self.assertFalse(allocator.assign_task(top_level_task).is_valid())
+
+        # A nested one is admitted anyway, on the least loaded worker that supports its capabilities.
+        nested_task = self.__create_task(TaskID(b"task_nested"), {}, priority=1)
+        assigned_worker = allocator.assign_task(nested_task)
+        self.assertTrue(assigned_worker.is_valid())
+        self.assertEqual(allocator.get_worker_by_task_id(nested_task.taskId), assigned_worker)
+
+        # The over-committed worker reports no free slots rather than a negative count.
+        self.assertEqual(allocator.statistics()[assigned_worker]["free"], 0)
+
+    def test_nested_task_still_honors_capabilities(self):
+        """Exempting a nested task from the queue size must not exempt it from capability matching."""
+        allocator = CapabilityAllocatePolicy()
+
+        allocator.add_worker(WorkerID(b"worker_linux"), {"linux": -1}, MAX_TASKS_PER_WORKER)
+
+        nested_gpu_task = self.__create_task(TaskID(b"task_nested_gpu"), {"gpu": -1}, priority=1)
+        self.assertFalse(allocator.assign_task(nested_gpu_task).is_valid())
+
     @staticmethod
     def __balance_with_timeout(allocator: CapabilityAllocatePolicy, timeout_seconds: float) -> Optional[Dict]:
         """Runs balance() in a daemon thread; returns its result, or None if it did not finish in time."""
@@ -236,11 +273,11 @@ class TestCapabilityAllocatePolicy(unittest.TestCase):
         return result.get("advice")
 
     @staticmethod
-    def __create_task(task_id: TaskID, capabilities: Dict[str, int]) -> Task:
+    def __create_task(task_id: TaskID, capabilities: Dict[str, int], priority: int = 0) -> Task:
         return Task(
             taskId=task_id,
             source=ClientID(b"client_id"),
-            metadata=b"",
+            metadata=TaskFlags(priority=priority).serialize(),
             funcObjectId=b"",
             functionArgs=[],
             capabilities=capabilities,

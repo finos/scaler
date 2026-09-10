@@ -28,3 +28,14 @@ def retrieve_task_flags_from_task(task: Task) -> TaskFlags:
         return TaskFlags.deserialize(task.metadata)
     except struct.error:
         raise ValueError(f"unexpected metadata value (expected {TaskFlags.__name__}).")
+
+
+def is_nested_task(task: Task) -> bool:
+    """Returns whether the task was submitted by a client running inside another task.
+
+    A `Client` stamps a submission with its parent task's priority plus one when it runs inside a processor,
+    and with zero otherwise. A non-zero priority therefore means some task that already holds a worker's
+    queue slot is blocked until this one completes.
+    """
+
+    return retrieve_task_flags_from_task(task).priority > 0
