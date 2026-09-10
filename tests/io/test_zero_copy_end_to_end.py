@@ -23,7 +23,7 @@ class TestZeroCopyEndToEnd(unittest.TestCase):
         ymq_bytes = Bytes(buf)
 
         # deserialize into a capnp message - also zero copy
-        msg = Message.from_bytes(ymq_bytes)  # type: ignore[arg-type]
+        msg = Message.from_bytes(ymq_bytes)
 
         # change the contents of the buffer to be the success message
         # if `msg` is reading from `buf` as it should in zero copy

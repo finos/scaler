@@ -146,11 +146,11 @@ class TaskController(Reporter):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def on_task_cancel_confirm(self, task_cancel_confirm: TaskCancelConfirm):
+    async def on_task_cancel_confirm(self, worker_id: WorkerID, task_cancel_confirm: TaskCancelConfirm):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def on_task_result(self, result: TaskResult):
+    async def on_task_result(self, worker_id: WorkerID, result: TaskResult):
         raise NotImplementedError()
 
     @abc.abstractmethod

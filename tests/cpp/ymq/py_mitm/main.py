@@ -14,7 +14,7 @@ import os
 import platform
 import signal
 
-from scapy.all import IP, TCP  # type: ignore
+from scapy.all import IP, TCP
 
 from tests.cpp.ymq.py_mitm import passthrough, randomly_drop_packets, send_rst_to_client
 from tests.cpp.ymq.py_mitm.mitm_types import MITM, MITMInterface, TCPConnection
@@ -149,7 +149,7 @@ def signal_ready(pid: int) -> None:
         win32api.CloseHandle(handle)
     elif system in ("Linux", "Darwin"):
         if pid > 0:
-            os.kill(pid, signal.SIGUSR1)  # type: ignore[attr-defined]
+            os.kill(pid, signal.SIGUSR1)  # type: ignore[attr-defined, unused-ignore]
 
 
 TESTCASES = {

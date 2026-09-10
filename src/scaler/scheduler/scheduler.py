@@ -211,11 +211,11 @@ class Scheduler:
             return
 
         if isinstance(message, TaskCancelConfirm):
-            await self._task_controller.on_task_cancel_confirm(message)
+            await self._task_controller.on_task_cancel_confirm(WorkerID(source), message)
             return
 
         if isinstance(message, TaskResult):
-            await self._task_controller.on_task_result(message)
+            await self._task_controller.on_task_result(WorkerID(source), message)
             return
 
         if isinstance(message, TaskLog):

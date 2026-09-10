@@ -29,6 +29,7 @@ class BatchWorkerProvisioner(DeclarativeWorkerProvisioner):
             stop_units=self.stop_units,
             active_unit_count=self.active_unit_count,
             max_unit_count=-1,
+            scale_down_cooldown_seconds=config.worker_manager_config.scale_down_cooldown_seconds,
         )
 
     def active_unit_count(self) -> int:

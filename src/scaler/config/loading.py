@@ -18,9 +18,9 @@ def _find_config_arg(argv: List[str]) -> Optional[str]:
 def _load_toml(config_path: str) -> Dict[str, Any]:
     """Parse a TOML file and return its full contents as a dict."""
     try:
-        import tomllib  # type: ignore[import]  # Python 3.11+
+        import tomllib  # Python 3.11+
     except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
     with open(config_path, "rb") as f:
         return tomllib.load(f)
 
@@ -36,7 +36,7 @@ def _toml_section_defaults(section_data: Dict[str, Any], cls: type) -> Dict[str,
     """
     # Map normalized TOML key -> argparse dest (field name).
     key_to_dest: Dict[str, str] = {}
-    for f in dataclasses.fields(cls):  # type: ignore[arg-type]
+    for f in dataclasses.fields(cls):
         if is_config_class(f.type):
             for ff in dataclasses.fields(f.type):  # type: ignore[arg-type]
                 long = ff.metadata.get("long", f"--{ff.name.replace('_', '-')}")
@@ -60,7 +60,7 @@ def _env_defaults(cls: type) -> Dict[str, Any]:
     so the value stored as a default is already the correct Python type.
     """
     result: Dict[str, Any] = {}
-    for field in dataclasses.fields(cls):  # type: ignore[arg-type]
+    for field in dataclasses.fields(cls):
         if is_config_class(field.type):
             result.update(_env_defaults(field.type))  # type: ignore[arg-type]
             continue

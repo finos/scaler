@@ -167,7 +167,7 @@ class TopologicalSorter(Generic[GraphKeyType]):
     def _get_zero_degree_mask(cls, masked_matrix: gb.Matrix) -> np.ndarray:
         degrees = masked_matrix.reduce_rowwise(gb.monoid.lor)
         indices, _ = degrees.to_coo(indices=True, values=False, sort=False)
-        return np.logical_not(np.in1d(np.arange(masked_matrix.nrows), indices))  # type: ignore[attr-defined]
+        return np.logical_not(np.in1d(np.arange(masked_matrix.nrows), indices))
 
     @staticmethod
     def _get_mask_diff(old_mask: np.ndarray, new_mask: np.ndarray) -> List[int]:

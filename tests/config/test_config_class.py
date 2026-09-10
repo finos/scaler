@@ -13,12 +13,12 @@ from scaler.config.type_utils import parse_bool
 try:
     from typing import override  # type: ignore[attr-defined]
 except ImportError:
-    from typing_extensions import override  # type: ignore[attr-defined]
+    from typing_extensions import override
 
 try:
     from typing import Self  # type: ignore[attr-defined]
 except ImportError:
-    from typing_extensions import Self  # type: ignore[attr-defined]
+    from typing_extensions import Self
 
 
 class MockArgParser:

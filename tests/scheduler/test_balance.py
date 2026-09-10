@@ -148,7 +148,9 @@ class TestBalance(unittest.TestCase):
 
             time.sleep(2)  # let worker_a register both tasks before it's frozen
 
-            _signal_process_tree(combo._worker_manager_process, signal.SIGSTOP)  # type: ignore[attr-defined]
+            _signal_process_tree(
+                combo._worker_manager_process, signal.SIGSTOP  # type: ignore[attr-defined, unused-ignore]
+            )
 
             base_config = combo._worker_manager.config
             second_manager = NativeWorkerManager(
@@ -187,7 +189,9 @@ class TestBalance(unittest.TestCase):
 
             # SIGKILL, not terminate()/SIGTERM: worker_a may still be frozen and SIGTERM would
             # never be delivered to a stopped process.
-            _signal_process_tree(combo._worker_manager_process, signal.SIGKILL)  # type: ignore[attr-defined]
+            _signal_process_tree(
+                combo._worker_manager_process, signal.SIGKILL  # type: ignore[attr-defined, unused-ignore]
+            )
             combo._worker_manager_process.join()
 
             # Shut the scheduler down before disconnecting the client: if a task is still
@@ -256,7 +260,9 @@ class TestBalance(unittest.TestCase):
 
             # Kill worker_a's whole tree: its socket closes, but with no graceful WorkerDisconnectNotification and
             # the timeout far off the scheduler still lists it, so the balancer will send a cancel to it.
-            _signal_process_tree(combo._worker_manager_process, signal.SIGKILL)  # type: ignore[attr-defined]
+            _signal_process_tree(
+                combo._worker_manager_process, signal.SIGKILL  # type: ignore[attr-defined, unused-ignore]
+            )
 
             base_config = combo._worker_manager.config
             second_manager = NativeWorkerManager(
@@ -283,7 +289,7 @@ class TestBalance(unittest.TestCase):
             # be swallowed, not tear the scheduler down.
             time.sleep(2)
             self.assertTrue(
-                combo._scheduler.is_alive(),  # type: ignore[attr-defined]
+                combo._scheduler.is_alive(),
                 "scheduler exited after a balance-cancel send to a departed worker (its socket had closed)",
             )
 
@@ -298,7 +304,9 @@ class TestBalance(unittest.TestCase):
                 second_manager_process.terminate()
                 second_manager_process.join()
 
-            _signal_process_tree(combo._worker_manager_process, signal.SIGKILL)  # type: ignore[attr-defined]
+            _signal_process_tree(
+                combo._worker_manager_process, signal.SIGKILL  # type: ignore[attr-defined, unused-ignore]
+            )
             combo._worker_manager_process.join()
 
             combo.shutdown()

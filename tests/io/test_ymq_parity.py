@@ -6,9 +6,9 @@ Both implementations must stay in sync or browser clients will silently break.
 
 Parity is checked at three levels:
 
-1. **Wire protocol constants.** Parse the authoritative C++ header
-   ``src/cpp/scaler/ymq/configuration.h`` and compare against the wasm shim's
-   Python constants (``_MAGIC_STRING``, header size).
+1. **Wire protocol constants.** Compare the wasm shim's Python constants
+   (``MAGIC_STRING``, header size) against the native module and the
+   authoritative C++ headers.
 2. **Module surface.** Every name exported by the native ``_ymq`` that the
    shim claims to re-implement must exist on both modules with a compatible
    type/shape.
@@ -17,7 +17,6 @@ Parity is checked at three levels:
 """
 
 import pathlib
-import re
 import unittest
 
 from scaler.io.ymq import _ymq as _ymq_native
@@ -41,23 +40,13 @@ class WireProtocolParityTest(unittest.TestCase):
             f"Cannot find C++ wire-protocol config at {_CPP_CONFIG}; " "the shim cannot be verified against it.",
         )
 
-    def test_magic_string_matches_cpp(self) -> None:
-        text = _CPP_CONFIG.read_text(encoding="utf-8")
-        # Match: std::array<uint8_t, N> magicString {'Y', 'M', 'Q', 2};
-        match = re.search(r"magicString\s*\{([^}]*)\}", text)
-        self.assertIsNotNone(match, "Could not find magicString in configuration.h")
-        parts = [p.strip() for p in match.group(1).split(",") if p.strip()]
-        cpp_bytes = bytearray()
-        for p in parts:
-            if p.startswith("'") and p.endswith("'") and len(p) == 3:
-                cpp_bytes.append(ord(p[1]))
-            else:
-                cpp_bytes.append(int(p, 0))
+    def test_magic_string_matches_native(self) -> None:
+        # The native module re-exports the C++ ``magicString`` verbatim, so it is the authority here.
         self.assertEqual(
-            bytes(cpp_bytes),
-            _ymq_wasm._MAGIC_STRING,
-            "Wasm shim magic bytes drifted from C++ configuration.h; "
-            "update _ymq_wasm._MAGIC_STRING or revert the C++ change.",
+            _ymq_native.MAGIC_STRING,
+            _ymq_wasm.MAGIC_STRING,
+            "Wasm shim magic bytes drifted from the native module; "
+            "update _ymq_wasm.MAGIC_STRING or revert the C++ change.",
         )
 
     def test_header_size_matches_cpp(self) -> None:
@@ -98,6 +87,7 @@ class ModuleSurfaceParityTest(unittest.TestCase):
         "SysCallError",
         "DEFAULT_MAX_RETRY_TIMES",
         "DEFAULT_INIT_RETRY_DELAY",
+        "MAGIC_STRING",
     ]
 
     def test_all_names_present(self) -> None:

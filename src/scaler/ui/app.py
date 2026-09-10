@@ -1366,7 +1366,7 @@ def create_app(config: WebGUIConfig) -> FastAPI:
     app = FastAPI(title="Scaler Web GUI")
 
     @app.middleware("http")
-    async def no_cache_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
+    async def no_cache_headers(request: Request, call_next):
         response = await call_next(request)
         if request.url.path.startswith("/static"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"

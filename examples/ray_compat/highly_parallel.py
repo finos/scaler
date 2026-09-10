@@ -35,7 +35,7 @@ def main():
 
     SAMPLE_COUNT = 1000 * 1000
     start = time.time()
-    future = pi4_sample.remote(sample_count=SAMPLE_COUNT)  # type: ignore[call-arg]
+    future = pi4_sample.remote(sample_count=SAMPLE_COUNT)
     pi4 = ray.get(future)  # noqa: F841
     end = time.time()
     dur = end - start

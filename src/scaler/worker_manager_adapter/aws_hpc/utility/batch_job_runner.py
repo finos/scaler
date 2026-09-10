@@ -40,7 +40,7 @@ def setup_logging():
     )
     # Ensure stdout is unbuffered for immediate log visibility
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+        sys.stdout.reconfigure(line_buffering=True)
 
     # Register signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
@@ -182,9 +182,10 @@ def main():
 
             # Log memory before execution
             try:
-                import resource  # type: ignore[import-not-found]
+                import resource
 
-                mem_before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss  # type: ignore[attr-defined]
+                usage = resource.getrusage(resource.RUSAGE_SELF)  # type: ignore[attr-defined, unused-ignore]
+                mem_before = usage.ru_maxrss
                 logger.info(f"Memory before execution: {mem_before} KB")
             except Exception:
                 pass

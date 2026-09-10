@@ -2,7 +2,7 @@ import socket
 from typing import Any
 
 import pydivert
-from scapy.all import IP, Packet  # type: ignore[attr-defined]
+from scapy.all import IP, Packet
 
 from tests.cpp.ymq.py_mitm.mitm_types import MITMInterface
 

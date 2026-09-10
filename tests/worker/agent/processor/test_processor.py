@@ -55,7 +55,7 @@ class ProcessorLogExitTest(unittest.TestCase):
 
     def __log_exit(self, reason: str, exception: Optional[BaseException] = None) -> logging.LogRecord:
         with self.assertLogs(_LOGGER_NAME, level=logging.DEBUG) as captured:
-            self.processor._Processor__log_exit(reason, exception=exception)  # type: ignore[attr-defined]
+            self.processor._Processor__log_exit(reason, exception=exception)
 
         self.assertEqual(len(captured.records), 1)
         return captured.records[0]
@@ -74,7 +74,7 @@ class ProcessorLogExitTest(unittest.TestCase):
 
         self.assertEqual(record.levelno, logging.ERROR)
         self.assertIsNotNone(record.exc_info)
-        self.assertIs(record.exc_info[1], exception)  # type: ignore[index]
+        self.assertIs(record.exc_info[1], exception)
 
     def test_in_flight_task_is_named_when_an_exception_is_present(self) -> None:
         # A storage failure mid-result has to name the task it orphaned, which needs _current_task still set.
@@ -119,7 +119,7 @@ class ProcessorLogExitTest(unittest.TestCase):
 
         self.assertFalse(self.processor._interrupted)
 
-        self.processor._Processor__interrupt()  # type: ignore[attr-defined]
+        self.processor._Processor__interrupt()
 
         self.assertTrue(self.processor._interrupted)
         self.processor._connector_agent.destroy.assert_called_once()
@@ -144,7 +144,7 @@ class ProcessorSendResultTest(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     def __send_result(self) -> None:
-        self.processor._Processor__send_result(  # type: ignore[attr-defined]
+        self.processor._Processor__send_result(
             self.task.source, self.task.taskId, TaskResultType.success, b"result-bytes"
         )
 
@@ -181,7 +181,7 @@ class ProcessorResultHandOffRetryTest(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     def __send_result(self) -> None:
-        self.processor._Processor__send_result(  # type: ignore[attr-defined]
+        self.processor._Processor__send_result(
             self.task.source, self.task.taskId, TaskResultType.success, b"result-bytes"
         )
 
@@ -279,7 +279,7 @@ class ProcessorRunForeverTest(unittest.TestCase):
 
         with self.assertLogs(_LOGGER_NAME, level=logging.DEBUG):
             with self.assertRaises(SystemExit) as context:
-                self.processor._Processor__run_forever()  # type: ignore[attr-defined]
+                self.processor._Processor__run_forever()
 
         self.assertEqual(context.exception.code, 3)
 
@@ -288,7 +288,7 @@ class ProcessorRunForeverTest(unittest.TestCase):
         agent.receive.side_effect = ObjectStorageException("storage went away")
 
         with self.assertLogs(_LOGGER_NAME, level=logging.DEBUG) as captured:
-            self.processor._Processor__run_forever()  # type: ignore[attr-defined]
+            self.processor._Processor__run_forever()
 
         self.assertEqual(captured.records[0].levelno, logging.ERROR)
 

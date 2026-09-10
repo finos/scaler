@@ -94,7 +94,7 @@ class JupyterLiteTests(unittest.TestCase):
 
     def _run_notebook(self, notebook: str) -> None:
         try:
-            from playwright.sync_api import sync_playwright  # type: ignore[import-not-found]
+            from playwright.sync_api import sync_playwright
         except ImportError:
             self.skipTest("playwright not installed; pip install playwright && playwright install chromium")
 

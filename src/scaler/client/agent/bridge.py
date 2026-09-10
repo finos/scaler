@@ -154,7 +154,7 @@ def _run_sync(coro: Awaitable[Any]) -> Any:
     time so this module is safely importable in any Python environment for
     unit-testing.
     """
-    from pyodide.ffi import run_sync  # type: ignore[import-not-found]
+    from pyodide.ffi import run_sync
 
     return run_sync(coro)
 
@@ -245,8 +245,8 @@ def _install_js_heartbeat_timer(socket: Any) -> None:
     _uninstall_js_heartbeat_timer()
 
     try:
-        import js  # type: ignore[import-not-found]
-        from pyodide.code import run_js  # type: ignore[import-not-found]
+        import js
+        from pyodide.code import run_js
 
         framed = _build_framed_heartbeat()
         _js_heartbeat_state["framed_heartbeat_size"] = len(framed)
@@ -328,7 +328,7 @@ def _uninstall_js_heartbeat_timer() -> None:
     if timer_id is None:
         return
     try:
-        import js  # type: ignore[import-not-found]
+        import js
 
         js.clearInterval(timer_id)
     except BaseException as exc:
@@ -383,7 +383,7 @@ def _setup_browser_websocket_heartbeat(agent: Any) -> None:
     Safe to call multiple times -- replaces the prior hook.
     """
     try:
-        from scaler.io.ymq._ymq_wasm import ConnectorSocket  # type: ignore[import-not-found]
+        from scaler.io.ymq._ymq_wasm import ConnectorSocket
     except ImportError:
         # Not running on emscripten; nothing to do.
         return
@@ -406,7 +406,7 @@ def _setup_browser_websocket_heartbeat(agent: Any) -> None:
             return
         _install_js_heartbeat_timer(socket)
 
-    ConnectorSocket._post_open_hook = staticmethod(post_open_hook)  # type: ignore[attr-defined]
+    ConnectorSocket._post_open_hook = staticmethod(post_open_hook)
 
     # If the socket is already open by the time we install (e.g. very fast
     # local loopback), fire the hook synchronously so we don't miss it.
@@ -420,9 +420,9 @@ def _teardown_browser_websocket_heartbeat() -> None:
     _uninstall_js_heartbeat_timer()
     _js_heartbeat_state["agent"] = None
     try:
-        from scaler.io.ymq._ymq_wasm import ConnectorSocket  # type: ignore[import-not-found]
+        from scaler.io.ymq._ymq_wasm import ConnectorSocket
 
-        ConnectorSocket._post_open_hook = None  # type: ignore[attr-defined]
+        ConnectorSocket._post_open_hook = None
     except ImportError:
         pass
 
@@ -876,7 +876,7 @@ class InProcessAgentBridge(ClientAgentBridge):
 
         async def _await_task() -> None:
             try:
-                await self._task  # type: ignore[misc]
+                await self._task
             except asyncio.CancelledError:
                 return
             except BaseException:
@@ -941,7 +941,7 @@ def check_browser_runtime() -> None:
         return
 
     try:
-        from pyodide.ffi import run_sync  # type: ignore[import-not-found]  # noqa: F401
+        from pyodide.ffi import run_sync  # noqa: F401
     except ImportError as exc:
         raise RuntimeError(
             "Scaler's browser client requires Pyodide's JavaScript Promise Integration (JSPI). "

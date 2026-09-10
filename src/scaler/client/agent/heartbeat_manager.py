@@ -8,7 +8,7 @@ try:
 except ModuleNotFoundError:
     if sys.platform != "emscripten":
         raise
-    psutil = None  # type: ignore[assignment]
+    psutil = None
 
 from scaler.client.agent.mixins import HeartbeatManager, ObjectManager
 from scaler.config.types.address import AddressConfig, SocketType

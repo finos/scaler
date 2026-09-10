@@ -56,7 +56,7 @@ orb = [
     "botocore[crt]",
 ]
 oci = [
-    "oci==2.185.0",
+    "oci==2.185.1",
 ]
 all = [
     "opengris-scaler[aws]",
@@ -141,12 +141,14 @@ cmake.define.CMAKE_C_COMPILER = ""
 cmake.define.CMAKE_CXX_COMPILER = ""
 
 [tool.mypy]
+python_version = "3.10"
 # keeps src/ on the search path when it is not itself in the build, so that checking a single file
 # under tests/ still resolves scaler.protocol.capnp instead of silently degrading it to Any
 mypy_path = "src"
 no_strict_optional = true
 check_untyped_defs = true
 ignore_missing_imports = true
+warn_unused_ignores = true
 exclude = [
     "^docs.*$",
     "^benchmark.*$",

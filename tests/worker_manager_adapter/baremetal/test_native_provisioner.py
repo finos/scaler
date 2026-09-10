@@ -9,6 +9,7 @@ def _make_provisioner(max_task_concurrency: int = -1) -> NativeWorkerProvisioner
     config.worker_config.per_worker_capabilities.capabilities = {}
     config.worker_manager_config.max_task_concurrency = max_task_concurrency
     config.worker_manager_config.worker_manager_id = "test-wm"
+    config.worker_manager_config.scale_down_cooldown_seconds = 0
     config.worker_type = "NAT"
     return NativeWorkerProvisioner(config)
 

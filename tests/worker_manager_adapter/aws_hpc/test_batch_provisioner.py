@@ -8,6 +8,7 @@ def _make_provisioner(max_concurrent_jobs: int = 100) -> BatchWorkerProvisioner:
     config = MagicMock()
     config.worker_config.per_worker_capabilities.capabilities = {}
     config.max_concurrent_jobs = max_concurrent_jobs
+    config.worker_manager_config.scale_down_cooldown_seconds = 0
     return BatchWorkerProvisioner(config)
 
 

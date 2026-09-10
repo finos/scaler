@@ -1,11 +1,13 @@
 import asyncio
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from scaler.worker_manager_adapter.capacity_coordinator import CapacityCoordinator
 
 
-def _make_coordinator(units: list, max_unit_count: int = -1) -> tuple[CapacityCoordinator, AsyncMock, AsyncMock]:
+def _make_coordinator(
+    units: list, max_unit_count: int = -1, scale_down_cooldown_seconds: float = 0
+) -> tuple[CapacityCoordinator, AsyncMock, AsyncMock]:
     start_mock = AsyncMock()
     stop_mock = AsyncMock()
     loop = CapacityCoordinator(
@@ -13,6 +15,7 @@ def _make_coordinator(units: list, max_unit_count: int = -1) -> tuple[CapacityCo
         stop_units=stop_mock,
         active_unit_count=lambda: len(units),
         max_unit_count=max_unit_count,
+        scale_down_cooldown_seconds=scale_down_cooldown_seconds,
     )
     return loop, start_mock, stop_mock
 
@@ -114,3 +117,86 @@ class TestCapacityCoordinator(unittest.IsolatedAsyncioTestCase):
         # delta = min(5 - 2, 2 - 2) = 0: pool is full, nothing to start
         start_mock.assert_not_called()
         stop_mock.assert_not_called()
+
+    @patch("scaler.utility.cooldown.time.monotonic")
+    async def test_reconcile_defers_scale_down_when_cooldown_active(self, mock_time) -> None:
+        mock_time.return_value = 100.0
+        units = [object(), object(), object()]
+        loop, start_mock, stop_mock = _make_coordinator(units=units, scale_down_cooldown_seconds=10)
+
+        await loop.set_desired_unit_count(1)
+        await asyncio.sleep(0)
+
+        start_mock.assert_not_called()
+        stop_mock.assert_not_called()
+
+    @patch("scaler.utility.cooldown.time.monotonic")
+    async def test_reconcile_executes_deferred_scale_down_once_cooldown_elapses(self, mock_time) -> None:
+        mock_time.return_value = 100.0
+        units = [object(), object(), object()]
+        loop, _, stop_mock = _make_coordinator(units=units, scale_down_cooldown_seconds=10)
+
+        await loop.set_desired_unit_count(1)
+        await asyncio.sleep(0)
+        stop_mock.assert_not_called()
+
+        mock_time.return_value = 111.0
+        # Same desired count as before: simulates the scheduler re-asserting it on the next heartbeat.
+        await loop.set_desired_unit_count(1)
+        await asyncio.sleep(0)
+        stop_mock.assert_called_once_with(2)
+
+    @patch("scaler.utility.cooldown.time.monotonic")
+    async def test_further_scale_down_requests_do_not_extend_the_cooldown_window(self, mock_time) -> None:
+        mock_time.return_value = 100.0
+        units = [object(), object(), object()]
+        loop, _, stop_mock = _make_coordinator(units=units, scale_down_cooldown_seconds=10)
+
+        await loop.set_desired_unit_count(2)  # first scale-down request, anchors the window at t=100
+        await asyncio.sleep(0)
+        stop_mock.assert_not_called()
+
+        mock_time.return_value = 105.0
+        await loop.set_desired_unit_count(1)  # decreases further; must not restart the window
+        await asyncio.sleep(0)
+        stop_mock.assert_not_called()
+
+        mock_time.return_value = 111.0  # 11s after the *first* request, not the second
+        await loop.set_desired_unit_count(1)
+        await asyncio.sleep(0)
+        stop_mock.assert_called_once_with(2)
+
+    @patch("scaler.utility.cooldown.time.monotonic")
+    async def test_scale_up_cancels_deferred_scale_down_and_resets_cooldown(self, mock_time) -> None:
+        mock_time.return_value = 100.0
+        units = [object(), object(), object()]
+        loop, start_mock, stop_mock = _make_coordinator(units=units, scale_down_cooldown_seconds=10)
+
+        await loop.set_desired_unit_count(1)  # scale-down request, deferred
+        await asyncio.sleep(0)
+        stop_mock.assert_not_called()
+
+        mock_time.return_value = 105.0
+        await loop.set_desired_unit_count(5)  # scale-up cancels the pending scale-down
+        await asyncio.sleep(0)
+        start_mock.assert_called_once_with(2)
+        stop_mock.assert_not_called()
+
+        mock_time.return_value = 106.0
+        await loop.set_desired_unit_count(1)  # a fresh scale-down request, anchored at t=106
+        await asyncio.sleep(0)
+        stop_mock.assert_not_called()
+
+        mock_time.return_value = 117.0  # 11s after the fresh anchor
+        await loop.set_desired_unit_count(1)
+        await asyncio.sleep(0)
+        stop_mock.assert_called_once_with(2)
+
+    async def test_scale_down_is_immediate_when_cooldown_is_zero(self) -> None:
+        units = [object(), object(), object()]
+        loop, _, stop_mock = _make_coordinator(units=units, scale_down_cooldown_seconds=0)
+
+        await loop.set_desired_unit_count(1)
+        await asyncio.sleep(0)
+
+        stop_mock.assert_called_once_with(2)

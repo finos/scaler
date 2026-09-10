@@ -106,7 +106,7 @@ class ScalerFutureEmscriptenResultTest(unittest.TestCase):
         self._real_platform = _sys.platform
         # Force ``sys.platform`` to ``"emscripten"`` so ``_wait_result_ready``
         # takes the JSPI branch.
-        _sys.platform = "emscripten"  # type: ignore[misc]
+        _sys.platform = "emscripten"
 
         # Inject a fake ``pyodide.ffi.run_sync`` that drives the awaitable on
         # a fresh background-thread asyncio loop. ``asyncio.wrap_future`` is
@@ -145,7 +145,7 @@ class ScalerFutureEmscriptenResultTest(unittest.TestCase):
     def tearDown(self) -> None:
         import sys as _sys
 
-        _sys.platform = self._real_platform  # type: ignore[misc]
+        _sys.platform = self._real_platform
         _sys.modules.pop("pyodide", None)
         _sys.modules.pop("pyodide.ffi", None)
         if self._real_pyodide is not None:

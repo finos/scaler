@@ -47,6 +47,8 @@ TASK_ID = TaskID(b"task-under-test")
 CLIENT_ID = ClientID(b"client-under-test")
 WORKER_ID = WorkerID(b"worker-under-test")
 REPLACEMENT_WORKER_ID = WorkerID(b"replacement-worker")
+# a worker that the scheduler declared dead, and that still reports on a task it no longer holds
+STALE_WORKER_ID = WorkerID(b"stale-worker")
 FUNCTION_OBJECT_ID = ObjectID(b"function-object-id-padded-to-32b")
 FUNCTION_NAME = b"function"
 
@@ -105,39 +107,72 @@ SCENARIOS: Tuple[Scenario, ...] = (
     Scenario("BalanceCancelRequested (worker gone)", BalanceCancelRequested(task_id=TASK_ID), worker_holds_task=False),
     Scenario(
         "TaskResultReceived (success)",
-        TaskResultReceived(task_id=TASK_ID, task_result=make_task_result(TaskResultType.success)),
+        TaskResultReceived(task_id=TASK_ID, worker_id=WORKER_ID, task_result=make_task_result(TaskResultType.success)),
     ),
     Scenario(
         "TaskResultReceived (failed)",
-        TaskResultReceived(task_id=TASK_ID, task_result=make_task_result(TaskResultType.failed)),
+        TaskResultReceived(task_id=TASK_ID, worker_id=WORKER_ID, task_result=make_task_result(TaskResultType.failed)),
     ),
     Scenario(
         "TaskResultReceived (worker died)",
-        TaskResultReceived(task_id=TASK_ID, task_result=make_task_result(TaskResultType.failedWorkerDied)),
+        TaskResultReceived(
+            task_id=TASK_ID, worker_id=WORKER_ID, task_result=make_task_result(TaskResultType.failedWorkerDied)
+        ),
     ),
     Scenario(
         "CancelConfirmCanceled",
         CancelConfirmCanceled(
-            task_id=TASK_ID, task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+            task_id=TASK_ID,
+            worker_id=WORKER_ID,
+            task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.canceled),
         ),
     ),
     Scenario(
         "CancelConfirmCanceled (no capacity)",
         CancelConfirmCanceled(
-            task_id=TASK_ID, task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+            task_id=TASK_ID,
+            worker_id=WORKER_ID,
+            task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.canceled),
         ),
         capacity_available=False,
     ),
     Scenario(
         "CancelConfirmFailed",
         CancelConfirmFailed(
-            task_id=TASK_ID, task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.cancelFailed)
+            task_id=TASK_ID,
+            worker_id=WORKER_ID,
+            task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.cancelFailed),
         ),
     ),
     Scenario(
         "CancelConfirmNotFound",
         CancelConfirmNotFound(
-            task_id=TASK_ID, task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.cancelNotFound)
+            task_id=TASK_ID,
+            worker_id=WORKER_ID,
+            task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.cancelNotFound),
+        ),
+    ),
+    Scenario(
+        "CancelConfirmNotFound (no capacity)",
+        CancelConfirmNotFound(
+            task_id=TASK_ID,
+            worker_id=WORKER_ID,
+            task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.cancelNotFound),
+        ),
+        capacity_available=False,
+    ),
+    Scenario(
+        "TaskResultReceived (stale worker)",
+        TaskResultReceived(
+            task_id=TASK_ID, worker_id=STALE_WORKER_ID, task_result=make_task_result(TaskResultType.success)
+        ),
+    ),
+    Scenario(
+        "CancelConfirmCanceled (stale worker)",
+        CancelConfirmCanceled(
+            task_id=TASK_ID,
+            worker_id=STALE_WORKER_ID,
+            task_cancel_confirm=make_task_cancel_confirm(TaskCancelConfirmType.canceled),
         ),
     ),
     Scenario("WorkerDisconnected", WorkerDisconnected(task_id=TASK_ID, worker_id=WORKER_ID)),

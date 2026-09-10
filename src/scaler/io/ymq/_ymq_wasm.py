@@ -36,7 +36,7 @@ DEFAULT_MAX_RETRY_TIMES: int = 8
 DEFAULT_INIT_RETRY_DELAY: int = 100  # milliseconds
 
 # YMQ wire-protocol constants (mirror src/cpp/scaler/ymq/configuration.h).
-_MAGIC_STRING: bytes = b"YMQ\x02"
+MAGIC_STRING: bytes = b"YMQ\x02"
 _HEADER_FORMAT: str = "<Q"  # uint64_t little-endian, matches C++ ``Header``
 _HEADER_SIZE: int = struct.calcsize(_HEADER_FORMAT)
 
@@ -131,7 +131,7 @@ def _make_exception(code: ErrorCode, message: str) -> YMQException:
 
 
 def _run_sync_jspi(coro: Any) -> Any:
-    from pyodide.ffi import run_sync  # type: ignore[import-not-found]
+    from pyodide.ffi import run_sync
 
     return run_sync(coro)
 
@@ -512,8 +512,8 @@ class ConnectorSocket:
     def _open_websocket(self, ws_url: str) -> None:
         # Imported lazily so that this module can be imported (and unit-tested
         # at the surface level) outside of Pyodide.
-        import js  # type: ignore[import-not-found]
-        from pyodide.ffi import create_proxy  # type: ignore[import-not-found]
+        import js
+        from pyodide.ffi import create_proxy
 
         ws = js.WebSocket.new(ws_url)
         ws.binaryType = "arraybuffer"
@@ -534,14 +534,14 @@ class ConnectorSocket:
 
     def _send_handshake(self) -> None:
         identity_bytes = self.identity.encode("utf-8")
-        frame = _MAGIC_STRING + struct.pack(_HEADER_FORMAT, len(identity_bytes)) + identity_bytes
+        frame = MAGIC_STRING + struct.pack(_HEADER_FORMAT, len(identity_bytes)) + identity_bytes
         # Send the handshake as a single binary frame; no callback (handshake
         # failures will surface as a close event).
         self._raw_send(frame, None)
 
     def _raw_send(self, data: bytes, callback: Optional[SendCallback]) -> None:
         try:
-            import js  # type: ignore[import-not-found]
+            import js
 
             # Allocate a JS Uint8Array of the right size and copy our bytes
             # into it via Pyodide's ``JsProxy.assign``, which expects a
@@ -635,15 +635,15 @@ class ConnectorSocket:
     def _process_recv_buffer(self) -> None:
         # Consume the magic string first.
         if not self._magic_consumed:
-            if len(self._recv_buffer) < len(_MAGIC_STRING):
+            if len(self._recv_buffer) < len(MAGIC_STRING):
                 return
-            magic = bytes(self._recv_buffer[: len(_MAGIC_STRING)])
-            if magic != _MAGIC_STRING:
+            magic = bytes(self._recv_buffer[: len(MAGIC_STRING)])
+            if magic != MAGIC_STRING:
                 self._fail(
                     _make_exception(ErrorCode.InvalidAddressFormat, f"Invalid YMQ magic string from remote: {magic!r}")
                 )
                 return
-            del self._recv_buffer[: len(_MAGIC_STRING)]
+            del self._recv_buffer[: len(MAGIC_STRING)]
             self._magic_consumed = True
 
         # Drain framed messages.
@@ -693,7 +693,7 @@ class ConnectorSocket:
         try:
             callback(arg)
         except Exception:  # noqa: BLE001 -- never let a user callback abort the IO loop
-            sys.excepthook(*sys.exc_info())  # type: ignore[misc]
+            sys.excepthook(*sys.exc_info())
 
 
 # ---------------------------------------------------------------------------
@@ -727,4 +727,5 @@ __all__ = [
     "SysCallError",
     "DEFAULT_MAX_RETRY_TIMES",
     "DEFAULT_INIT_RETRY_DELAY",
+    "MAGIC_STRING",
 ]

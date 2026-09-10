@@ -68,7 +68,7 @@ class ScalerFuture(concurrent.futures.Future):
         return self._task_id
 
     def profiling_info(self) -> ProfileResult:
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             if self._profiling_info is None:
                 raise ValueError(f"didn't receive profiling info for {self} yet")
 
@@ -80,7 +80,7 @@ class ScalerFuture(concurrent.futures.Future):
         task_result_type: TaskResultType,
         profile_result: Optional[ProfileResult] = None,
     ) -> None:
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             if self.done():
                 raise concurrent.futures.InvalidStateError(f"invalid future state: {self._state}")
 
@@ -97,7 +97,7 @@ class ScalerFuture(concurrent.futures.Future):
             if not self._is_delayed or self._has_result_listeners():
                 self._start_result_object_fetch()
 
-            self._condition.notify_all()  # type: ignore[attr-defined]
+            self._condition.notify_all()
 
     def set_canceled(self):
         with self._condition:
@@ -111,7 +111,7 @@ class ScalerFuture(concurrent.futures.Future):
             for waiter in self._waiters:
                 waiter.add_cancelled(self)
 
-            self._condition.notify_all()  # type: ignore[attr-defined]
+            self._condition.notify_all()
 
         self._invoke_callbacks()  # type: ignore[attr-defined]
 
@@ -135,7 +135,7 @@ class ScalerFuture(concurrent.futures.Future):
             for waiter in self._waiters:
                 waiter.add_cancelled(self)
 
-            self._condition.notify_all()  # type: ignore[attr-defined]
+            self._condition.notify_all()
 
         self._invoke_callbacks()  # type: ignore[attr-defined]
 
@@ -145,7 +145,7 @@ class ScalerFuture(concurrent.futures.Future):
         exception: Optional[BaseException] = None,
         profiling_info: Optional[ProfileResult] = None,
     ) -> None:
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             if self.cancelled():
                 raise concurrent.futures.InvalidStateError(f"invalid future state: {self._state}")
 
@@ -171,7 +171,7 @@ class ScalerFuture(concurrent.futures.Future):
                 for waiter in self._waiters:
                     waiter.add_result(self)
 
-            self._condition.notify_all()  # type: ignore[attr-defined]
+            self._condition.notify_all()
 
         self._invoke_callbacks()  # type: ignore[attr-defined]
 
@@ -182,19 +182,19 @@ class ScalerFuture(concurrent.futures.Future):
         self._set_result_or_exception(exception=exception, profiling_info=profiling_info)
 
     def result(self, timeout: Optional[float] = None) -> Any:
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             self._wait_result_object(timeout)
 
             return super().result()
 
     def exception(self, timeout: Optional[float] = None) -> Optional[BaseException]:
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             self._wait_result_object(timeout)
 
             return super().exception()
 
     def cancel(self, timeout: Optional[float] = None) -> bool:
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             if self.cancelled():
                 return True
 
@@ -250,7 +250,7 @@ class ScalerFuture(concurrent.futures.Future):
             raise
 
     def _on_waiters_updated(self, waiters: EventList):
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             # if it's delayed future, get the result when waiter gets added
             if self._is_delayed and len(self._waiters) > 0:
                 self._start_result_object_fetch()
@@ -265,7 +265,7 @@ class ScalerFuture(concurrent.futures.Future):
         As it never blocks, this can be called from the client agent's event loop.
         """
 
-        with self._condition:  # type: ignore[attr-defined]
+        with self._condition:
             if self._result_object_id is None or self.cancelled() or self._result_received:
                 return
 
@@ -351,7 +351,7 @@ class ScalerFuture(concurrent.futures.Future):
                 self.__jspi_wait_future_settled(self._result_object_future, remaining_seconds)
                 continue
 
-            self._condition.wait(remaining_seconds)  # type: ignore[attr-defined]
+            self._condition.wait(remaining_seconds)
 
     def _wait_result_ready(self, timeout: Optional[float] = None) -> None:
         """

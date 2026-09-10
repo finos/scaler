@@ -219,7 +219,7 @@ class ConfigClass:
 
     @classmethod
     def configure_parser(cls: type, parser: argparse.ArgumentParser) -> None:
-        for field in dataclasses.fields(cls):  # type: ignore[arg-type]
+        for field in dataclasses.fields(cls):
             if "subcommand" in field.metadata or "section" in field.metadata:
                 continue  # handled by parse()
 
@@ -248,7 +248,7 @@ class ConfigClass:
             if field.default is not dataclasses.MISSING:
                 kwargs["default"] = field.default
 
-            if field.default_factory is not dataclasses.MISSING:  # type: ignore[misc]
+            if field.default_factory is not dataclasses.MISSING:
                 kwargs["default"] = field.default_factory()
 
             # when store_true or store_false is set, setting the type raises a type error
@@ -387,7 +387,7 @@ def _build_subparser_tree(
         dest:       Unique argparse dest name for this level's chosen subcommand.
         toml_data:  Full parsed TOML dict loaded from --config (may be empty).
     """
-    subcommand_fields = [f for f in dataclasses.fields(cls) if "subcommand" in f.metadata]  # type: ignore[arg-type]
+    subcommand_fields = [f for f in dataclasses.fields(cls) if "subcommand" in f.metadata]
     if not subcommand_fields:
         return
 
@@ -415,7 +415,7 @@ def _build_subparser_tree(
 
         # Inject TOML defaults for parent-class ConfigClass fields (e.g. logging) from
         # sections named after the field - e.g. [logging] -> LoggingConfig defaults.
-        for parent_field in dataclasses.fields(parent_cls):  # type: ignore[arg-type]
+        for parent_field in dataclasses.fields(parent_cls):
             if "subcommand" in parent_field.metadata or "section" in parent_field.metadata:
                 continue
             if is_config_class(parent_field.type):

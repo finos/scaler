@@ -44,6 +44,17 @@ class WorkerManagerConfig(ConfigClass):
         ),
     )
 
+    scale_down_cooldown_seconds: float = dataclasses.field(
+        default=defaults.DEFAULT_WORKER_MANAGER_SCALE_DOWN_COOLDOWN_SECONDS,
+        metadata=dict(
+            short="-sdc",
+            help=(
+                "minimum number of seconds a scale-down must be requested for before it is honored, "
+                "to avoid flapping under intermittent load. 0 disables the cooldown."
+            ),
+        ),
+    )
+
     @property
     def effective_worker_scheduler_address(self) -> AddressConfig:
         return self.worker_scheduler_address if self.worker_scheduler_address is not None else self.scheduler_address
@@ -53,3 +64,5 @@ class WorkerManagerConfig(ConfigClass):
             raise ValueError("worker_manager_id cannot be an empty string.")
         if self.max_task_concurrency != -1 and self.max_task_concurrency < 0:
             raise ValueError("max_task_concurrency must be -1 (no limit) or a non-negative integer.")
+        if self.scale_down_cooldown_seconds < 0:
+            raise ValueError("scale_down_cooldown_seconds must be a non-negative number.")

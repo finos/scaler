@@ -15,6 +15,7 @@ from scaler.utility.serialization import deserialize_failure
 from tests.scheduler.controllers.task_state_graph_harness import (
     CLIENT_ID,
     LIVE_TASK_STATES,
+    NO_WORKER,
     REJECTED,
     REPLACEMENT_WORKER_ID,
     SCENARIOS,
@@ -184,35 +185,73 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
 
         self.harness.worker_controller.on_task_done.assert_not_awaited()
 
-    async def test_balance_cancel_confirm_not_found_strands_the_task(self):
-        """The restructure preserves this hole, it does not fix it.
+    async def test_balance_cancel_confirm_not_found_reschedules_the_task(self):
+        """The worker answers that it does not hold the task, so the balance move cannot complete.
 
-        The recovery is a behavior change that needs its own review, so the arm returns None and the task keeps the
-        dead end it has on main. Replace this test when the follow-up decides between terminating and rescheduling.
+        The client never asked for this cancel, so the task must not be terminated. The scheduler still maps the task
+        to that worker, so the stale mapping is released and the task is placed again, which is what a balance cancel
+        confirmed as canceled already does.
         """
 
         state_machine = await self.harness.enter_state(TaskState.balanceCanceling)
+        self.harness.set_capacity_available(True)
 
         await self.harness.controller.on_task_cancel_confirm(
-            make_task_cancel_confirm(TaskCancelConfirmType.cancelNotFound)
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.cancelNotFound)
         )
 
-        self.assertEqual(state_machine.current_state(), TaskState.balanceCanceling)
-        self.assertIsNotNone(self.harness.get_state_machine())
-        self.harness.worker_controller.on_task_done.assert_not_awaited()
-        self.assertEqual(len(self.harness.messages_sent_to(CLIENT_ID)), 0)
+        self.assertEqual(state_machine.current_state(), TaskState.running)
+        self.harness.worker_controller.on_task_done.assert_awaited_once_with(TASK_ID)
+        self.assertEqual(len(self.harness.messages_sent_to(REPLACEMENT_WORKER_ID)), 1)
+        self.assertEqual(self.harness.messages_sent_to(CLIENT_ID), [], "the client asked for nothing")
 
-    async def test_balance_cancel_without_a_worker_strands_the_task(self):
-        """The same preserved hole, reached from the scheduler side instead of from a worker message."""
+    async def test_balance_cancel_confirm_not_found_queues_the_task_when_no_worker_is_free(self):
+        state_machine = await self.harness.enter_state(TaskState.balanceCanceling)
+        self.harness.set_capacity_available(False)
+
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.cancelNotFound)
+        )
+
+        self.assertEqual(state_machine.current_state(), TaskState.inactive)
+        self.assertEqual(list(self.harness.controller._unassigned), [TASK_ID])
+        self.assertEqual(self.harness.messages_sent_to(REPLACEMENT_WORKER_ID), [])
+
+    async def test_balance_cancel_without_a_worker_is_dropped(self):
+        """The same staleness, reached from the scheduler side instead of from a worker message.
+
+        No worker holds the task, so no cancel leaves the scheduler and no confirm can ever arrive. The task must not
+        be placed again here: the mapping is gone because the worker departed, and that worker's WorkerDisconnected
+        event is already queued for this task, so a dispatch here would be followed by a second one. The balance move
+        is dropped and the task stays running until the queued event reroutes it.
+        """
 
         state_machine = await self.harness.enter_state(TaskState.running)
         self.harness.set_worker_holds_task(False)
+        self.harness.set_capacity_available(True)
 
         await self.harness.controller.on_task_balance_cancel(TASK_ID)
 
-        self.assertEqual(state_machine.current_state(), TaskState.balanceCanceling)
+        self.assertEqual(state_machine.current_state(), TaskState.running)
         self.assertIsNotNone(self.harness.get_state_machine())
-        self.assertEqual(len(self.harness.messages_sent_to(CLIENT_ID)), 0)
+        self.assertEqual(self.harness.messages_sent_to(REPLACEMENT_WORKER_ID), [], "the task must not be placed twice")
+        self.assertEqual(self.harness.messages_sent_to(CLIENT_ID), [])
+
+        # the cancel was never sent because the worker controller has no mapping, so there is nothing to release
+        self.harness.worker_controller.on_task_done.assert_not_awaited()
+
+    async def test_a_disconnect_after_a_dropped_balance_cancel_reroutes_the_task(self):
+        """The queued event the dropped balance cancel defers to, placing the task exactly once."""
+
+        state_machine = await self.harness.enter_state(TaskState.running)
+        self.harness.set_worker_holds_task(False)
+        self.harness.set_capacity_available(True)
+
+        await self.harness.controller.on_task_balance_cancel(TASK_ID)
+        await self.harness.controller.on_worker_disconnect(TASK_ID, WORKER_ID)
+
+        self.assertEqual(state_machine.current_state(), TaskState.running)
+        self.assertEqual(len(self.harness.messages_sent_to(REPLACEMENT_WORKER_ID)), 1)
 
     async def test_a_repeated_balance_cancel_is_refused_without_an_error(self):
         """A saturated worker is slow to confirm, so the balancer can re-advise a move that is still in flight.
@@ -235,7 +274,9 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         state_machine = await self.harness.enter_state(TaskState.balanceCanceling)
         self.harness.set_capacity_available(True)
 
-        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
 
         self.assertEqual(state_machine.current_state(), TaskState.running)
         self.harness.worker_controller.on_task_done.assert_awaited_once_with(TASK_ID)
@@ -245,7 +286,9 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         state_machine = await self.harness.enter_state(TaskState.balanceCanceling)
         self.harness.set_capacity_available(False)
 
-        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
 
         self.assertEqual(state_machine.current_state(), TaskState.inactive)
         self.assertEqual(self.harness.messages_sent_to(REPLACEMENT_WORKER_ID), [])
@@ -256,7 +299,7 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         state_machine = await self.harness.enter_state(TaskState.canceling)
 
         await self.harness.controller.on_task_cancel_confirm(
-            make_task_cancel_confirm(TaskCancelConfirmType.cancelFailed)
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.cancelFailed)
         )
 
         self.assertEqual(state_machine.current_state(), TaskState.running)
@@ -305,11 +348,118 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
                 harness = TaskControllerHarness()
                 state_machine = await harness.enter_state(TaskState.running)
 
-                await harness.controller.on_task_result(make_task_result(result_type))
+                await harness.controller.on_task_result(WORKER_ID, make_task_result(result_type))
 
                 self.assertEqual(state_machine.current_state(), expected)
                 self.assertIsNone(harness.get_state_machine())
                 self.assertEqual(len(harness.task_results_sent_to(CLIENT_ID)), 1)
+
+    async def test_a_result_from_a_worker_that_no_longer_holds_the_task_is_dropped(self):
+        """A worker declared dead by the heartbeat timeout can still be alive and still be running the task.
+
+        Its late result is for a task that the scheduler already handed to another worker. Answering the client
+        with it reports an outcome for a task that is still running, and releases the capacity of the worker that
+        holds it now.
+        """
+
+        state_machine = await self.harness.enter_state(TaskState.running)
+
+        self.harness.set_capacity_available(True)
+        await self.harness.controller.on_worker_disconnect(TASK_ID, WORKER_ID)
+        self.assertEqual(state_machine.current_state(), TaskState.running)
+
+        self.harness.reset_recorded_calls()
+        self.harness.worker_controller.get_worker_by_task_id.return_value = REPLACEMENT_WORKER_ID
+
+        with self.assertLogs("scaler.scheduler.controllers.task_controller", level="WARNING") as logs:
+            await self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
+
+        self.assertTrue(any("dropping TaskResultReceived" in line for line in logs.output))
+        self.assertEqual(state_machine.current_state(), TaskState.running)
+        self.assertIsNotNone(self.harness.get_state_machine(), "the task still runs on the replacement worker")
+        self.assertEqual(self.harness.task_results_sent_to(CLIENT_ID), [])
+        self.harness.worker_controller.on_task_done.assert_not_awaited()
+
+    async def test_the_worker_that_holds_the_task_after_a_reroute_reports_its_result(self):
+        """The check must only refuse the previous holder, the replacement worker still answers for the task."""
+
+        state_machine = await self.harness.enter_state(TaskState.running)
+
+        self.harness.set_capacity_available(True)
+        await self.harness.controller.on_worker_disconnect(TASK_ID, WORKER_ID)
+
+        self.harness.reset_recorded_calls()
+        self.harness.worker_controller.get_worker_by_task_id.return_value = REPLACEMENT_WORKER_ID
+
+        await self.harness.controller.on_task_result(REPLACEMENT_WORKER_ID, make_task_result(TaskResultType.success))
+
+        self.assertEqual(state_machine.current_state(), TaskState.success)
+        self.assertEqual(len(self.harness.task_results_sent_to(CLIENT_ID)), 1)
+
+    async def test_a_cancel_confirm_from_a_worker_that_no_longer_holds_the_task_is_dropped(self):
+        """The same stale worker also answers cancels, and its confirm must not end a cancel it knows nothing of."""
+
+        state_machine = await self.harness.enter_state(TaskState.canceling)
+        self.harness.worker_controller.get_worker_by_task_id.return_value = REPLACEMENT_WORKER_ID
+
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
+
+        self.assertEqual(state_machine.current_state(), TaskState.canceling)
+        self.assertEqual(self.harness.cancel_confirms_sent_to(CLIENT_ID), [])
+        self.harness.worker_controller.on_task_done.assert_not_awaited()
+
+    async def test_a_result_for_a_task_that_is_back_in_the_queue_is_dropped(self):
+        """A reroute that finds no free worker queues the task, so the previous holder owns nothing to report on.
+
+        The guard passes this on, because an unheld task does not prove the sender is stale. It is the state
+        machine that refuses it: inactive accepts no worker-reported event.
+        """
+
+        state_machine = await self.harness.enter_state(TaskState.running)
+
+        self.harness.set_capacity_available(False)
+        await self.harness.controller.on_worker_disconnect(TASK_ID, WORKER_ID)
+        self.assertEqual(state_machine.current_state(), TaskState.inactive)
+
+        self.harness.reset_recorded_calls()
+        self.harness.worker_controller.get_worker_by_task_id.return_value = NO_WORKER
+
+        await self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
+
+        self.assertEqual(state_machine.current_state(), TaskState.inactive)
+        self.assertEqual(self.harness.task_results_sent_to(CLIENT_ID), [])
+
+    async def test_a_result_from_the_holder_survives_an_assignment_cleared_by_a_worker_timeout(self):
+        """An unheld task must not be read as proof that the sender is stale.
+
+        ``remove_worker`` drops the assignments of every task a dead worker held, and it runs from the heartbeat
+        timer without this machine's lock, before the ``WorkerDisconnected`` it raises reaches the router. A
+        result that arrives in that window is from the rightful holder, and dropping it would discard a finished
+        task and re-run it on the worker the reroute picks next.
+        """
+
+        state_machine = await self.harness.enter_state(TaskState.running)
+        self.harness.worker_controller.get_worker_by_task_id.return_value = NO_WORKER
+
+        await self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
+
+        self.assertEqual(state_machine.current_state(), TaskState.success)
+        self.assertEqual(len(self.harness.task_results_sent_to(CLIENT_ID)), 1)
+
+    async def test_a_cancel_confirm_from_the_holder_survives_an_assignment_cleared_by_a_worker_timeout(self):
+        """The same window closes a cancel: the worker did cancel the task before the scheduler gave up on it."""
+
+        state_machine = await self.harness.enter_state(TaskState.canceling)
+        self.harness.worker_controller.get_worker_by_task_id.return_value = NO_WORKER
+
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
+
+        self.assertEqual(state_machine.current_state(), TaskState.canceled)
+        self.assertEqual(len(self.harness.cancel_confirms_sent_to(CLIENT_ID)), 1)
 
     async def test_a_duplicate_worker_disconnect_is_ignored(self):
         """Racing duplicates are normal, the second one must not reroute the task a second time."""
@@ -328,12 +478,12 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
     async def test_the_monitor_reports_the_state_that_the_task_lands_in(self):
         await self.harness.enter_state(TaskState.running)
 
-        await self.harness.controller.on_task_result(make_task_result(TaskResultType.success))
+        await self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
 
         self.assertEqual(self.harness.monitored_task_states(), [TaskState.success])
 
     async def test_an_event_for_an_unknown_task_is_dropped(self):
-        await self.harness.controller.on_task_result(make_task_result(TaskResultType.success))
+        await self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
 
         self.harness.binder.send.assert_not_awaited()
 
@@ -345,7 +495,7 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
 
         with unittest.mock.patch.object(task_controller.logger, "exception") as logged:
             await self.harness.controller.on_task_cancel_confirm(
-                make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+                WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
             )
 
         # swallowing without a trace is the failure mode this guards: the task dies and nothing says why
@@ -357,7 +507,9 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         await self.harness.enter_state(TaskState.canceling)
         self.harness.worker_controller.on_task_done.side_effect = RuntimeError("the action failed")
 
-        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
 
         self.assertIsNone(self.harness.get_state_machine(), "a faulted task must not stay live")
 
@@ -376,7 +528,9 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         self.harness.worker_controller.on_task_done.side_effect = RuntimeError("the action failed")
         self.harness.connector_storage.set_object.side_effect = RuntimeError("object storage is down")
 
-        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
 
         self.assertIsNone(self.harness.get_state_machine(), "the machine is dropped even when the teardown fails")
 
@@ -389,7 +543,9 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         self.harness.set_capacity_available(False)
         self.harness.binder_monitor.send.side_effect = RuntimeError("the monitor is down")
 
-        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
 
         self.assertEqual(list(self.harness.controller._unassigned), [], "a faulted task must leave no id queued")
 
@@ -404,7 +560,9 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         await self.harness.enter_state(TaskState.canceling)
         self.harness.worker_controller.on_task_done.side_effect = RuntimeError("the action failed")
 
-        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
 
         statistics = self.harness.controller._task_state_manager.get_statistics()
         self.assertEqual(statistics[TaskState.canceling], 0, "the source state must not leak a count")
@@ -442,7 +600,9 @@ class TestTaskStateExclusion(unittest.IsolatedAsyncioTestCase):
 
         self.harness.binder.send.side_effect = blocking_send
 
-        first = asyncio.create_task(self.harness.controller.on_task_result(make_task_result(TaskResultType.success)))
+        first = asyncio.create_task(
+            self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
+        )
         await in_send.wait()
 
         # a heartbeat timeout fires for the same task while its result is still being sent
@@ -470,7 +630,9 @@ class TestTaskStateExclusion(unittest.IsolatedAsyncioTestCase):
 
         self.harness.binder.send.side_effect = blocking_send
 
-        first = asyncio.create_task(self.harness.controller.on_task_result(make_task_result(TaskResultType.success)))
+        first = asyncio.create_task(
+            self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
+        )
         await in_send.wait()
 
         second = asyncio.create_task(self.harness.controller.on_task_cancel(CLIENT_ID, make_task_cancel()))
@@ -508,7 +670,9 @@ class TestTaskStateExclusion(unittest.IsolatedAsyncioTestCase):
 
         self.harness.worker_controller.on_task_done.side_effect = fail_the_first_release
 
-        first = asyncio.create_task(self.harness.controller.on_task_result(make_task_result(TaskResultType.success)))
+        first = asyncio.create_task(
+            self.harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
+        )
         await in_action.wait()
 
         second = asyncio.create_task(self.harness.controller.on_task_cancel(CLIENT_ID, make_task_cancel()))
@@ -531,7 +695,9 @@ class TestTaskStateExclusion(unittest.IsolatedAsyncioTestCase):
         state_machine = await self.harness.enter_state(TaskState.canceling)
         self.harness.worker_controller.on_task_done.side_effect = RuntimeError("the action failed")
 
-        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+        await self.harness.controller.on_task_cancel_confirm(
+            WORKER_ID, make_task_cancel_confirm(TaskCancelConfirmType.canceled)
+        )
 
         self.assertFalse(state_machine.lock.locked(), "the lock must not survive a faulted transition")
 
@@ -550,7 +716,7 @@ class TestTaskControllerStatistics(unittest.IsolatedAsyncioTestCase):
     async def test_a_finished_task_leaves_no_state_behind(self):
         harness = TaskControllerHarness()
         await harness.controller.on_task_new(make_task())
-        await harness.controller.on_task_result(make_task_result(TaskResultType.success))
+        await harness.controller.on_task_result(WORKER_ID, make_task_result(TaskResultType.success))
 
         self.assertIsNone(harness.get_state_machine())
         self.assertNotIn(TASK_ID, harness.controller._task_id_to_task)

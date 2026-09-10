@@ -167,8 +167,8 @@ def _from_args(config_cls: Type[T], kwargs: Dict[str, Any], toml_data: Optional[
                 # Section absent from TOML: use an empty list or the field default.
                 if is_list(field.type):
                     result_kwargs[field.name] = []
-                elif field.default_factory is not dataclasses.MISSING:  # type: ignore[misc]
-                    result_kwargs[field.name] = field.default_factory()  # type: ignore[misc]
+                elif field.default_factory is not dataclasses.MISSING:
+                    result_kwargs[field.name] = field.default_factory()
                 else:
                     result_kwargs[field.name] = None
             elif is_list(field.type) and is_union(inner_type):
@@ -181,10 +181,10 @@ def _from_args(config_cls: Type[T], kwargs: Dict[str, Any], toml_data: Optional[
             elif isinstance(raw, dict):
                 # Single TOML table [section]: reconstruct one instance.
                 # If the field expects a list, wrap the single instance.
-                instance: Any = _from_toml(inner_type, raw)  # type: ignore[arg-type]
+                instance: Any = _from_toml(inner_type, raw)
                 result_kwargs[field.name] = [instance] if is_list(field.type) else instance
             else:  # list of dicts - TOML [[array of tables]]
-                result_kwargs[field.name] = [_from_toml(inner_type, item) for item in raw]  # type: ignore[arg-type]
+                result_kwargs[field.name] = [_from_toml(inner_type, item) for item in raw]
         elif is_config_class(field.type):
             # Nested ConfigClass with no section= - recurse, sharing the same
             # mutable kwargs so the nested class pops its own fields out.

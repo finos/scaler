@@ -6,7 +6,7 @@ import dataclasses
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from scapy.all import IP, TCP, Packet  # type: ignore
+from scapy.all import IP, TCP, Packet
 
 
 @dataclasses.dataclass

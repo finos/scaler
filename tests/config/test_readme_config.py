@@ -71,7 +71,7 @@ class TestReadmeConfig(unittest.TestCase):
         try:
             import tomllib
         except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
+            import tomli as tomllib
 
         toml_data = tomllib.loads(README_TOML.decode())
         entries = toml_data.get("worker_manager", [])

@@ -8,6 +8,7 @@ from scaler.worker_manager_adapter.orb_aws_ec2.worker_manager import ORBWorkerPr
 def _make_provisioner(workers_per_instance: int = 1, max_instances: int = -1) -> ORBWorkerProvisioner:
     config = MagicMock()
     config.worker_config.per_worker_capabilities.capabilities = {"cpu": 4}
+    config.worker_manager_config.scale_down_cooldown_seconds = 0
     sdk = MagicMock()
     return ORBWorkerProvisioner(
         config=config,

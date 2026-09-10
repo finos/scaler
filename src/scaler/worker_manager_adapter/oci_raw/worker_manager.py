@@ -43,6 +43,7 @@ class OCIRawWorkerProvisioner(DeclarativeWorkerProvisioner):
             stop_units=self.stop_units,
             active_unit_count=self.active_unit_count,
             max_unit_count=max_instances,
+            scale_down_cooldown_seconds=config.worker_manager_config.scale_down_cooldown_seconds,
         )
         self._initialize_oci_client()
 

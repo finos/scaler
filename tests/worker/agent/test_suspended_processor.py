@@ -71,7 +71,7 @@ class TestDyingSuspendedProcessor(unittest.TestCase):
             parent_pid = int(pathlib.Path(parent_pid_path).read_text())
 
             # Kill the suspended process
-            os.kill(parent_pid, signal.SIGKILL)  # type: ignore[attr-defined]
+            os.kill(parent_pid, signal.SIGKILL)  # type: ignore[attr-defined, unused-ignore]
 
             with self.assertRaises(ProcessorDiedError):
                 future.result(timeout=RESULT_TIMEOUT_SECONDS)
