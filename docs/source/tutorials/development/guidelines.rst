@@ -75,6 +75,10 @@ Test Cases
  * Python test cases should use the standard `unittest` module, and each test class should live in its own Python file
    named with the `test_*.py` prefix.
  * Mirror the unit-test directory structure to the code structure because the `tests` directory lives at the repo root.
+ * End-to-end tests -- which scale real workers up and down in real containers -- live under
+   `tests/integration` and are opt-in, gated behind the `SCALER_E2E` environment variable. See the
+   `end-to-end tests README <https://github.com/finos/opengris-scaler/blob/main/tests/integration/README.md>`_ for
+   what they cover and how to run them.
 
 C++ Guidelines
 --------------

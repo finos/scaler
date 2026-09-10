@@ -34,18 +34,8 @@ runs:
       shell: pwsh
       run: ./scripts/test.ps1 -C Debug
 
-    - name: Build Wheel
-      shell: bash
-      run: |
-        uv pip install --system build
-        python -m build --wheel
-
-    - name: Install Wheel
-      shell: bash
-      run: |
-        wheel_file=$(ls dist/*.whl | head -n 1)
-        echo "Installing wheel: $wheel_file"
-        uv pip install --system "$wheel_file[all]"
+    - name: Build and install wheel
+      uses: ./.github/actions/build-and-install-wheel
 
     - name: Run Unittests
       shell: bash

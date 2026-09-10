@@ -1,0 +1,90 @@
+name: "E2E Scaling Tests"
+
+# Scales real workers up and down against a real scheduler (see tests/integration/README.md). Needs a
+# Docker daemon and takes minutes, so it is not part of Build And Test. One topology per run:
+#   * manually via the Actions tab ("Run workflow"), picking a topology; or
+#   * by adding an "e2e-<topology>" label to a pull request, e.g. "e2e-ecs".
+on:
+  workflow_dispatch:
+    inputs:
+      topology:
+        description: "Which deployment to scale."
+        required: true
+        type: choice
+        options: [ container, container_waterfall, ecs, ec2, ecs_ec2 ]
+      num_tasks:
+        description: "Tasks per burst wave. Blank = the backend's default."
+        required: false
+        type: string
+      task_seconds:
+        description: "Sleep per task, seconds. Blank = the backend's default (0.15)."
+        required: false
+        type: string
+      policy_content:
+        description: >-
+          Raw waterfall_v1 policy for the waterfall topologies, one rule per line:
+          'priority,worker_manager_id[,max_task_concurrency]'. Ids are wm-<backend>-p<position>, e.g.
+          wm-ecs-p1. Ignored by single-manager topologies. Blank = default.
+        required: false
+        type: string
+  pull_request:
+    types: [ labeled ]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: E2E Scaling Test (Linux)
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'e2e-') }}
+    runs-on: ubuntu-latest
+    env:
+      # The dispatch input, or the label (its "e2e-" prefix is stripped below). An unknown value skips
+      # every test class, which unittest reports as a pass, so the run step asserts one actually ran.
+      SCALER_E2E: ${{ inputs.topology || github.event.label.name }}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout Repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Resolve topology
+        shell: bash
+        run: echo "SCALER_E2E=${SCALER_E2E#e2e-}" >> "$GITHUB_ENV"
+
+      - uses: ./.github/actions/setup-env
+        with:
+          os: ${{ runner.os }}
+          python-version: '3.13'
+
+      - uses: ./.github/actions/build-native-dependencies
+        with:
+          os: ${{ runner.os }}
+
+      # Installs scaler on the host, which is what runs the client, scheduler, and manager processes.
+      - uses: ./.github/actions/build-and-install-wheel
+
+      # The EC2 topologies boot instances that install the CURRENT source, so they need a portable wheel
+      # of it (not a PyPI release). Matches the interpreter above, so it is the same code under test.
+      - name: Build current-source manylinux wheel
+        if: ${{ env.SCALER_E2E == 'ec2' || env.SCALER_E2E == 'ecs_ec2' }}
+        shell: bash
+        run: CIBW_OUTPUT_DIR=dist_manylinux ./scripts/e2e/build_cibuildwheel.sh --only cp313-manylinux_x86_64
+
+      - name: Run e2e
+        shell: bash
+        env:
+          SCALER_IT_NUM_TASKS: ${{ inputs.num_tasks }}
+          SCALER_IT_TASK_SECONDS: ${{ inputs.task_seconds }}
+          SCALER_IT_WATERFALL_POLICY: ${{ inputs.policy_content }}
+        run: |
+          python -m unittest tests.integration.test_scaling -v 2>&1 | tee e2e.log
+          # Every scenario reports its numbers on an [e2e] line. No lines means nothing ran (an unknown
+          # topology, or every class skipped), which must not be reported as a green run.
+          echo "::group::What the run proved"
+          grep '^\[e2e\]' e2e.log || { echo "no e2e ran for topology '${SCALER_E2E}'"; exit 1; }
+          echo "::endgroup::"

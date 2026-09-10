@@ -6,6 +6,7 @@ __pycache__/
 
 dist/
 dist_wasm/
+dist_manylinux/
 sdist/
 wheels/
 eggs/

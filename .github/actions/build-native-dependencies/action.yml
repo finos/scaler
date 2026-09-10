@@ -1,0 +1,26 @@
+name: 'Build Native Dependencies'
+description: 'Set up the third-party C++ libraries (capnp, libuv, openssl) and build the Scaler native components'
+
+inputs:
+  os:
+    description: "operating system"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: ./.github/actions/3rd-party-libraries-download
+      with:
+        os: ${{ inputs.os }}
+
+    - uses: ./.github/actions/3rd-party-libraries-compile
+      with:
+        os: ${{ inputs.os }}
+
+    - uses: ./.github/actions/3rd-party-libraries-install
+      with:
+        os: ${{ inputs.os }}
+
+    - uses: ./.github/actions/compile-libraries
+      with:
+        os: ${{ inputs.os }}

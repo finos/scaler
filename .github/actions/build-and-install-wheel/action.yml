@@ -1,0 +1,16 @@
+name: 'Build And Install Wheel'
+description: 'Build the Scaler wheel and install it with all extras and the dev dependency-group'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build and install wheel
+      shell: bash
+      run: |
+        uv pip install --system build
+        python -m build --wheel
+        wheel_file=$(find dist -maxdepth 1 -name '*.whl' | sort | head -n 1)
+        echo "Installing wheel: $wheel_file"
+        uv pip install --system "${wheel_file}[all]"
+        # dev is a dependency-group (from pyproject), not a wheel extra.
+        uv pip install --system --group dev

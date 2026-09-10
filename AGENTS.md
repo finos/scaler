@@ -71,6 +71,25 @@ Both C++ and Python code share these standards:
   the old class name and rename those too
 - Code, and in-code comment should not contain non-ascii characters. Non-ascii characters enclosed as a string is fine. Logging output should not contain non-ascii characters.
 
+### Comments
+
+- Comments explain WHY (rationale, gotchas, invariants, links), never WHAT the code already states.
+- Never narrate the task, prompt, or PR in code or commit messages (e.g. "as requested", "this step
+  actually runs the suite"). Write for the next reader of the code, not for the current change.
+- Prefer one line over a paragraph; a comment that only restates the next statement is noise.
+
+### Change discipline
+
+- Simplicity first: write the minimum code that solves the problem. No speculative features, single-use
+  abstractions, configurability, or handling for impossible states.
+- Surgical changes: touch only what the task needs, and match the surrounding style. Remove only what
+  your change orphaned; flag unrelated dead code rather than deleting it.
+- Reuse an existing helper/utility before writing a new one; add a new one only when nothing suitable
+  exists, and put shared logic where other code can find it.
+- Verify behavioral, timing, and performance claims by running the code, not by reasoning about it.
+- If a request has multiple readings, or a simpler approach exists, say so before coding.
+- Do not copy CI/build steps between workflows; factor a shared sequence into a composite action.
+
 ### Python Code
 
 1. **Style Guide**:
@@ -186,6 +205,10 @@ python -m unittest discover  # Python
 ```
 
 When writing tests, try to match the directory and module/namespace structure of the code under test.
+
+Tests assume the full dev/test environment is installed: import test dependencies (numpy, boto3,
+...) directly rather than guarding them with `try/except ImportError` + `skipUnless`. Reserve
+`skipUnless`/`skipIf` for genuine platform or Python-version incompatibilities.
 
 ### Per-User Configuration
 

@@ -35,19 +35,7 @@ jobs:
         with:
           os: ${{ runner.os }}
 
-      - uses: ./.github/actions/3rd-party-libraries-download
-        with:
-          os: ${{ runner.os }}
-
-      - uses: ./.github/actions/3rd-party-libraries-compile
-        with:
-          os: ${{ runner.os }}
-
-      - uses: ./.github/actions/3rd-party-libraries-install
-        with:
-          os: ${{ runner.os }}
-
-      - uses: ./.github/actions/compile-libraries
+      - uses: ./.github/actions/build-native-dependencies
         with:
           os: ${{ runner.os }}
 
