@@ -24,17 +24,20 @@ def format_percentage(number: int):
     return f"{(number/1000):.1%}"
 
 
-def format_microseconds(number: int):
+def format_microseconds(number: int) -> str:
     for unit in ["us", "ms", "s"]:
-        if number >= TIME_MODULUS:
+        # Seconds is the last unit, so it has to render whatever is left rather
+        # than divide again and fall out of the loop returning None.
+        if unit != "s" and number >= TIME_MODULUS:
             number = int(number / TIME_MODULUS)
             continue
 
         if unit == "us":
             return f"{number/TIME_MODULUS:.1f}ms"
 
-        too_big_sign = "+" if unit == "s" and number > TIME_MODULUS else ""
-        return f"{int(number)}{too_big_sign}{unit}"
+        return f"{int(number)}{unit}"
+
+    raise ValueError("This should not happen")
 
 
 def format_seconds(number: int) -> str:
