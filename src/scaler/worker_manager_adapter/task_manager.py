@@ -82,7 +82,16 @@ class TaskManager(Looper, TaskManagerMixin):
 
         if self._executor_semaphore.locked():
             for acquired_task_id in self._acquiring_task_ids:
-                acquired_task = self._task_id_to_task[acquired_task_id]
+                acquired_task = self._task_id_to_task.get(acquired_task_id)
+                if acquired_task is None:
+                    # Only a bookkeeping bug puts an id here without its task, and this loop is the
+                    # wrong place to pay for it: raising takes down the worker and every task on it,
+                    # and skipping the id lets the loop finish without a break, which bypasses the
+                    # concurrency limit. Stop instead, so the task queues the way it would have if the
+                    # id had belonged to a task of at least its priority.
+                    logger.error(f"Acquired task is not in the worker queue: task_id={acquired_task_id.hex()}")
+                    break
+
                 acquired_task_priority = self._get_task_priority(acquired_task)
                 if task_priority <= acquired_task_priority:
                     break
@@ -121,8 +130,13 @@ class TaskManager(Looper, TaskManagerMixin):
             self._task_id_to_task.pop(task_cancel.taskId)
 
         if task_processing:
-            future = self._task_id_to_future[task_cancel.taskId]
-            future.cancel()
+            # A task counts as processing from before execute() returns, so its future may not be
+            # recorded yet. Marking it cancelled is enough either way: resolve_tasks drops a cancelled
+            # task when its future arrives, whether or not the cancel got to reach into it.
+            future = self._task_id_to_future.get(task_cancel.taskId)
+            if future is not None:
+                future.cancel()
+
             await self._execution_backend.on_cancel(task_cancel)
             self._processing_task_ids.remove(task_cancel.taskId)
             self._canceled_task_ids.add(task_cancel.taskId)
@@ -135,9 +149,6 @@ class TaskManager(Looper, TaskManagerMixin):
     async def on_task_result(self, result: TaskResult) -> None:
         # Required by TaskManagerMixin but not dispatched from WorkerProcess.__on_receive_external.
         # WorkerProcess drives result handling via resolve_tasks() instead.
-        # NOTE: _queued_task_ids is not cleaned up by resolve_tasks(), so completed tasks whose IDs
-        # are still in _queued_task_ids will be cleared here if this method is ever called, but in
-        # normal operation those IDs accumulate until the WorkerProcess exits.
         if result.taskId in self._queued_task_ids:
             self._queued_task_ids.remove(result.taskId)
             self._queued_task_id_queue.remove(result.taskId)
@@ -161,57 +172,73 @@ class TaskManager(Looper, TaskManagerMixin):
         done, _ = await asyncio.wait(self._task_id_to_future.values(), return_when=asyncio.FIRST_COMPLETED)
         for future in done:
             task_id = self._task_id_to_future.inv.pop(future)
-            task = self._task_id_to_task.get(task_id)
+            try:
+                await self._report_task_outcome(task_id, future)
+            finally:
+                self._release_task(task_id)
 
-            if task is None:
-                logger.warning(f"Cannot find task in worker queue: task_id={task_id.hex()}")
-                continue
+    async def _report_task_outcome(self, task_id: TaskID, future: asyncio.Future) -> None:
+        task = self._task_id_to_task.get(task_id)
 
-            if task_id in self._processing_task_ids:
-                self._processing_task_ids.remove(task_id)
+        if task is None:
+            logger.warning(f"Cannot find task in worker queue: task_id={task_id.hex()}")
+            return
 
-                if future.exception() is None:
-                    serializer_id = ObjectID.generate_serializer_object_id(task.source)
-                    serializer = self._serializers[serializer_id]
-                    result_bytes = serializer.serialize(future.result())
-                    result_type = TaskResultType.success
-                else:
-                    result_bytes = serialize_failure(cast(Exception, future.exception()))
-                    result_type = TaskResultType.failed
+        if task_id in self._processing_task_ids:
+            self._processing_task_ids.remove(task_id)
+            await self._send_task_result(task_id, task, future)
+            return
 
-                result_object_id = ObjectID.generate_object_id(task.source)
+        if task_id in self._canceled_task_ids:
+            self._canceled_task_ids.remove(task_id)
+            return
 
-                await self._connector_storage.set_object(result_object_id, result_bytes)
-                await self._connector_external.send(
-                    ObjectInstruction(
-                        instructionType=ObjectInstruction.ObjectInstructionType.create,
-                        objectUser=task.source,
-                        objectMetadata=ObjectMetadata(
-                            objectIds=(result_object_id,),
-                            objectTypes=(ObjectMetadata.ObjectContentType.object,),
-                            objectNames=(f"<res {result_object_id.hex()[:6]}>".encode(),),
-                        ),
-                    ),
-                    detached=True,
-                )
+        raise ValueError(f"task_id {task_id.hex()} not found in processing or canceled tasks")
 
-                await self._connector_external.send(
-                    TaskResult(taskId=task_id, resultType=result_type, metadata=b"", results=[bytes(result_object_id)]),
-                    detached=True,
-                )
+    async def _send_task_result(self, task_id: TaskID, task: Task, future: asyncio.Future) -> None:
+        if future.exception() is None:
+            serializer_id = ObjectID.generate_serializer_object_id(task.source)
+            serializer = self._serializers[serializer_id]
+            result_bytes = serializer.serialize(future.result())
+            result_type = TaskResultType.success
+        else:
+            result_bytes = serialize_failure(cast(Exception, future.exception()))
+            result_type = TaskResultType.failed
 
-            elif task_id in self._canceled_task_ids:
-                self._canceled_task_ids.remove(task_id)
+        result_object_id = ObjectID.generate_object_id(task.source)
 
-            else:
-                raise ValueError(f"task_id {task_id.hex()} not found in processing or canceled tasks")
+        await self._connector_storage.set_object(result_object_id, result_bytes)
+        await self._connector_external.send(
+            ObjectInstruction(
+                instructionType=ObjectInstruction.ObjectInstructionType.create,
+                objectUser=task.source,
+                objectMetadata=ObjectMetadata(
+                    objectIds=(result_object_id,),
+                    objectTypes=(ObjectMetadata.ObjectContentType.object,),
+                    objectNames=(f"<res {result_object_id.hex()[:6]}>".encode(),),
+                ),
+            ),
+            detached=True,
+        )
 
-            if task_id in self._acquiring_task_ids:
-                self._acquiring_task_ids.remove(task_id)
-                self._executor_semaphore.release()
+        await self._connector_external.send(
+            TaskResult(taskId=task_id, resultType=result_type, metadata=b"", results=[bytes(result_object_id)]),
+            detached=True,
+        )
 
-            self._task_id_to_task.pop(task_id)
-            self._execution_backend.on_cleanup(task_id)
+    def _release_task(self, task_id: TaskID) -> None:
+        """Drop what the worker still holds for a finished task and give back the permit it took.
+
+        Every way a task can end runs through here, including the ones that report nothing. An id left
+        in _acquiring_task_ids after its task is gone is what on_task_new looks up, and a permit left
+        unreleased costs the worker one unit of concurrency for the rest of its life.
+        """
+        if task_id in self._acquiring_task_ids:
+            self._acquiring_task_ids.remove(task_id)
+            self._executor_semaphore.release()
+
+        self._task_id_to_task.pop(task_id, None)
+        self._execution_backend.on_cleanup(task_id)
 
     async def routine(self) -> None:
         pass
@@ -224,7 +251,10 @@ class TaskManager(Looper, TaskManagerMixin):
 
         self._acquiring_task_ids.add(task_id)
         self._processing_task_ids.add(task_id)
-        # _queued_task_ids intentionally not cleared here; on_cancel_task and on_task_result clear it.
+        # A task that has been picked up is no longer queued. Leaving it in _queued_task_ids made
+        # on_cancel_task treat a task already in flight as one still waiting, and drop the task its
+        # future would later be resolved against.
+        self._queued_task_ids.discard(task_id)
         self._task_id_to_future[task.taskId] = await self._execution_backend.execute(task)
 
     @property

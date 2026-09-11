@@ -351,7 +351,7 @@ class TestTaskManagerProcessTask(unittest.IsolatedAsyncioTestCase):
         self.assertIn(task.taskId, self.tm._acquiring_task_ids)
         self.assertIs(self.tm._task_id_to_future[task.taskId], fut)
         self.assertEqual(self.tm.get_queued_size(), 0)
-        self.assertIn(task.taskId, self.tm._queued_task_ids)
+        self.assertNotIn(task.taskId, self.tm._queued_task_ids)
         self.assertTrue(self.tm._executor_semaphore.locked())
 
 
@@ -444,6 +444,149 @@ class TestTaskManagerResolveTasks(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(task.taskId, self.tm._task_id_to_task)
         self.backend.on_cleanup.assert_called_once_with(task.taskId)
         self.assertFalse(self.tm._executor_semaphore.locked())
+
+
+class TestTaskManagerTaskRelease(unittest.IsolatedAsyncioTestCase):
+    """Pins that a task never leaves its id behind in _acquiring_task_ids.
+
+    on_task_new looks every id there up in _task_id_to_task, so an id that outlives its task raises
+    KeyError on the next incoming task, which takes down the worker and every other task on it.
+    """
+
+    def setUp(self) -> None:
+        setup_logger()
+        logging_test_name(self)
+        self.backend = _make_backend()
+        self.connector_external = AsyncMock(spec=AsyncConnector)
+        self.connector_storage = AsyncMock(spec=AsyncObjectStorageConnector)
+        self.heartbeat_manager = MagicMock(spec=HeartbeatManager)
+        self.tm = TaskManager(1, self.backend)
+        self.tm.register(self.connector_external, self.connector_storage, self.heartbeat_manager)
+
+    async def _start_task(self, task: Task) -> asyncio.Future:
+        await self.tm.on_task_new(task)
+        future: asyncio.Future = asyncio.get_running_loop().create_future()
+        self.backend.execute = AsyncMock(return_value=future)
+        await self.tm.process_task()
+        return future
+
+    async def test_a_task_in_flight_is_no_longer_treated_as_queued(self) -> None:
+        task = _make_task()
+
+        await self._start_task(task)
+
+        self.assertNotIn(task.taskId, self.tm._queued_task_ids)
+        self.assertIn(task.taskId, self.tm._processing_task_ids)
+
+    async def test_force_cancelling_a_task_in_flight_keeps_its_task_until_the_future_resolves(self) -> None:
+        """The cancel used to take the queued branch as well, dropping the task the future needs."""
+        task = _make_task()
+
+        await self._start_task(task)
+        await self.tm.on_cancel_task(_make_task_cancel(task.taskId, force=True))
+
+        self.assertIn(task.taskId, self.tm._task_id_to_task)
+        self.assertIn(task.taskId, self.tm._canceled_task_ids)
+
+    async def test_a_force_cancelled_task_leaves_nothing_behind_and_gives_back_its_permit(self) -> None:
+        task = _make_task()
+
+        await self._start_task(task)
+        await self.tm.on_cancel_task(_make_task_cancel(task.taskId, force=True))
+        await self.tm.resolve_tasks()
+
+        self.assertNotIn(task.taskId, self.tm._acquiring_task_ids)
+        self.assertNotIn(task.taskId, self.tm._task_id_to_task)
+        self.assertNotIn(task.taskId, self.tm._canceled_task_ids)
+        self.assertFalse(self.tm._executor_semaphore.locked())
+
+    async def test_a_later_task_arrives_without_raising_after_a_force_cancel(self) -> None:
+        """This is the crash: on_task_new resolving a stranded id against a task that is gone."""
+        cancelled = _make_task()
+
+        await self._start_task(cancelled)
+        await self.tm.on_cancel_task(_make_task_cancel(cancelled.taskId, force=True))
+        await self.tm.resolve_tasks()
+
+        await self.tm.on_task_new(_make_task())
+
+    async def test_a_cancel_that_beats_the_future_being_recorded_is_still_accepted(self) -> None:
+        """execute() is awaited, so a force cancel can arrive while a task has no future yet."""
+        task = _make_task()
+        await self.tm.on_task_new(task)
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def slow_execute(_: Task) -> asyncio.Future:
+            started.set()
+            await release.wait()
+            return asyncio.get_running_loop().create_future()
+
+        self.backend.execute = AsyncMock(side_effect=slow_execute)
+        processing = asyncio.get_running_loop().create_task(self.tm.process_task())
+        await started.wait()
+
+        await self.tm.on_cancel_task(_make_task_cancel(task.taskId, force=True))
+
+        self.assertIn(task.taskId, self.tm._canceled_task_ids)
+        self.assertNotIn(task.taskId, self.tm._processing_task_ids)
+        release.set()
+        await processing
+
+    async def test_the_future_of_a_task_cancelled_that_early_is_still_resolved_away(self) -> None:
+        task = _make_task()
+        await self.tm.on_task_new(task)
+        started = asyncio.Event()
+        release = asyncio.Event()
+        future: asyncio.Future = asyncio.get_running_loop().create_future()
+
+        async def slow_execute(_: Task) -> asyncio.Future:
+            started.set()
+            await release.wait()
+            return future
+
+        self.backend.execute = AsyncMock(side_effect=slow_execute)
+        processing = asyncio.get_running_loop().create_task(self.tm.process_task())
+        await started.wait()
+        await self.tm.on_cancel_task(_make_task_cancel(task.taskId, force=True))
+        release.set()
+        await processing
+
+        future.set_result(None)
+        await self.tm.resolve_tasks()
+
+        self.assertNotIn(task.taskId, self.tm._canceled_task_ids)
+        self.assertNotIn(task.taskId, self.tm._acquiring_task_ids)
+        self.assertNotIn(task.taskId, self.tm._task_id_to_task)
+        self.connector_external.send.assert_called()
+
+    async def test_a_task_whose_task_is_already_gone_still_gives_back_its_permit(self) -> None:
+        task = _make_task()
+
+        future = await self._start_task(task)
+        future.set_result(None)
+        self.tm._task_id_to_task.pop(task.taskId)
+
+        await self.tm.resolve_tasks()
+
+        self.assertNotIn(task.taskId, self.tm._acquiring_task_ids)
+        self.assertFalse(self.tm._executor_semaphore.locked())
+
+    async def test_an_id_without_its_task_queues_the_next_task_rather_than_raising(self) -> None:
+        """A stranded id has no priority to compare against, so the task queues rather than the worker dying.
+
+        Queuing is the conservative reading: an id that cannot be resolved is no evidence that the
+        arriving task outranks what is in flight, and treating it as such would run the task outside
+        base_concurrency."""
+        stranded = _make_task()
+        self.tm._acquiring_task_ids.add(stranded.taskId)
+        await self.tm._executor_semaphore.acquire()
+        task = _make_task()
+
+        await self.tm.on_task_new(task)
+
+        self.assertIn(task.taskId, self.tm._queued_task_ids)
+        self.assertNotIn(task.taskId, self.tm._processing_task_ids)
 
 
 class TestExecutionBackendSentinel(unittest.IsolatedAsyncioTestCase):
