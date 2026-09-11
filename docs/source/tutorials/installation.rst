@@ -59,12 +59,6 @@ Base installation:
 
     uv pip install opengris-scaler
 
-If you need the web GUI:
-
-.. code-block:: bash
-
-    uv pip install 'opengris-scaler[gui]'
-
 If you use GraphBLAS to solve DAG graph tasks:
 
 .. code-block:: bash

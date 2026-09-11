@@ -332,7 +332,7 @@ void ObjectStorageServer::processDuplicateRequest(
 void ObjectStorageServer::processInfoGetTotalRequest(
     std::shared_ptr<Client> client, const ObjectRequestHeader& requestHeader)
 {
-    const uint64_t numOfFields   = 3;
+    const uint64_t numOfFields   = 6;
     const uint64_t payloadLength = numOfFields * sizeof(uint64_t);
     // Guaranteed to be aligned with 8, but to be sure we have alignas(8)
     alignas(sizeof(uint64_t)) unsigned char serializedPayload[payloadLength];
@@ -340,9 +340,27 @@ void ObjectStorageServer::processInfoGetTotalRequest(
     const uint64_t numIDs    = objectManager.size();
     const uint64_t numObjs   = objectManager.sizeUnique();
     const uint64_t totalSize = objectManager.totalObjectsSize();
+
+    uint64_t numPending          = 0;
+    const uint64_t numPendingIDs = pendingRequests.size();
+    auto oldest                  = std::chrono::steady_clock::now();
+    for (const auto& [objectID, requests]: pendingRequests) {
+        numPending += requests.size();
+        for (const auto& request: requests) {
+            oldest = std::min(oldest, request.waitingSince);
+        }
+    }
+    const uint64_t oldestPendingSeconds =
+        numPending == 0 ?
+            0 :
+            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - oldest).count();
+
     std::memcpy(&serializedPayload[0 * sizeof(uint64_t)], &numIDs, sizeof(uint64_t));
     std::memcpy(&serializedPayload[1 * sizeof(uint64_t)], &numObjs, sizeof(uint64_t));
     std::memcpy(&serializedPayload[2 * sizeof(uint64_t)], &totalSize, sizeof(uint64_t));
+    std::memcpy(&serializedPayload[3 * sizeof(uint64_t)], &numPending, sizeof(uint64_t));
+    std::memcpy(&serializedPayload[4 * sizeof(uint64_t)], &numPendingIDs, sizeof(uint64_t));
+    std::memcpy(&serializedPayload[5 * sizeof(uint64_t)], &oldestPendingSeconds, sizeof(uint64_t));
 
     ObjectResponseHeader responseHeader {
         .objectID      = requestHeader.objectID,

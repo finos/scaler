@@ -28,7 +28,9 @@ class WebGUIConfig(ConfigClass):
     task_log_max_size: int = dataclasses.field(
         default=defaults.DEFAULT_GUI_TASK_LOG_MAX_SIZE,
         metadata=dict(
-            short="-tl", help="maximum number of completed tasks the web GUI keeps and displays in the task log."
+            short="-tl",
+            help="how many completed tasks and task-log events the web GUI keeps; it pages through them "
+            "server-side, so this bounds memory rather than what you can browse.",
         ),
     )
     status_report_interval_seconds: int = dataclasses.field(

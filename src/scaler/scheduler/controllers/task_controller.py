@@ -3,7 +3,7 @@ import contextlib
 import logging
 import sys
 from collections import deque
-from typing import AsyncGenerator, Deque, Dict, List, Literal, Optional, Tuple
+from typing import AsyncGenerator, Deque, Dict, List, Literal, Optional, Set, Tuple
 
 from scaler.io.mixins import AsyncBinder, AsyncObjectStorageConnector, AsyncPublisher
 from scaler.protocol.capnp import (
@@ -125,6 +125,20 @@ class VanillaTaskController(TaskController, Looper, Reporter):
     async def routine(self):
         # TODO: we don't need loop task anymore, but I will leave this routine API here in case we need in the future
         pass
+
+    def get_task_ids_by_object(self, object_ids: Set[ObjectID]) -> Dict[ObjectID, List[TaskID]]:
+        """Which live tasks name each of these objects as their function or as an argument."""
+        task_ids_by_object: Dict[ObjectID, List[TaskID]] = {object_id: [] for object_id in object_ids}
+        for task_id, task in self._task_id_to_task.items():
+            if task.funcObjectId in task_ids_by_object:
+                task_ids_by_object[task.funcObjectId].append(task_id)
+            for argument in task.functionArgs:
+                if argument.type != Task.Argument.ArgumentType.objectID:
+                    continue
+                argument_object_id = ObjectID(argument.data)
+                if argument_object_id in task_ids_by_object:
+                    task_ids_by_object[argument_object_id].append(task_id)
+        return task_ids_by_object
 
     async def on_task_new(self, task: Task):
         task.capabilities = capabilities_to_dict(task.capabilities)
@@ -702,17 +716,31 @@ class VanillaTaskController(TaskController, Looper, Reporter):
         self, task_id: TaskID, task_state: TaskState, function_name: bytes, metadata: bytes = b""
     ) -> None:
         worker = self._worker_controller.get_worker_by_task_id(task_id)
-        capabilities = self._task_id_to_task[task_id].capabilities if task_id in self._task_id_to_task else []
+        task = self._task_id_to_task.get(task_id)
         await self._binder_monitor.send(
             StateTask(
                 taskId=task_id,
                 functionName=function_name,
                 state=task_state,
                 worker=worker,
-                capabilities=dict_to_capabilities(capabilities),
+                capabilities=dict_to_capabilities(task.capabilities if task is not None else []),
                 metadata=metadata,
+                objectBytes=self.__task_object_bytes(task_id),
+                client=task.source if task is not None else ClientID(b""),
             )
         )
+
+    def __task_object_bytes(self, task_id: TaskID) -> int:
+        """Payload bytes a task's function and arguments move, 0 if the task is already gone."""
+        task = self._task_id_to_task.get(task_id)
+        if task is None or self._object_controller is None:
+            return 0
+
+        total = self._object_controller.get_object_size(task.funcObjectId)
+        for argument in task.functionArgs:
+            if argument.type == Task.Argument.ArgumentType.objectID:
+                total += self._object_controller.get_object_size(argument.data)
+        return total
 
     async def __retry_unassignable(self):
         futures = [

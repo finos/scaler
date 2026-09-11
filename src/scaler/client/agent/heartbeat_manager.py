@@ -15,6 +15,7 @@ from scaler.config.types.address import AddressConfig, SocketType
 from scaler.io.mixins import AsyncConnector
 from scaler.protocol.capnp import ClientHeartbeat, ClientHeartbeatEcho, Resource
 from scaler.utility.mixins import Looper
+from scaler.utility.network_util import get_hostname
 
 
 class ClientHeartbeatManager(Looper, HeartbeatManager):
@@ -43,7 +44,8 @@ class ClientHeartbeatManager(Looper, HeartbeatManager):
             cpu = 0
             rss = 0
         await self._connector_external.send(
-            ClientHeartbeat(resource=Resource(cpu=cpu, rss=rss), latencyUS=self._latency_us), detached=True
+            ClientHeartbeat(resource=Resource(cpu=cpu, rss=rss), latencyUS=self._latency_us, hostname=get_hostname()),
+            detached=True,
         )
 
     async def on_heartbeat_echo(self, heartbeat: ClientHeartbeatEcho):

@@ -60,6 +60,7 @@ class ObjectMetadata(CapnpStruct):
     objectIds: Any
     objectTypes: Any
     objectNames: Any
+    objectSizes: Any
 
     @staticmethod
     def new_msg(object_ids: Any, object_types: Any = ..., object_names: Any = ...) -> "ObjectMetadata": ...
@@ -77,13 +78,24 @@ class Resource(CapnpStruct):
 
 class ObjectManagerStatus(CapnpStruct):
     numberOfObjects: int
+    storageObjectCount: int
+    storageUniqueCount: int
+    storageTotalBytes: int
+    storagePendingRequests: int
+    storagePendingObjects: int
+    storageOldestPendingS: int
 
 class ClientManagerStatus(CapnpStruct):
-    class Pair(CapnpStruct):
-        client: ClientID
+    class ClientStatus(CapnpStruct):
+        clientId: ClientID
         numTask: int
+        resource: Resource
+        latencyUS: int
+        lastSeenS: int
+        connectedS: int
+        hostname: str
 
-    clientToNumOfTask: Any
+    clients: Any
 
 class TaskManagerStatus(CapnpStruct):
     class Pair(CapnpStruct):
@@ -98,6 +110,8 @@ class ProcessorStatus(CapnpStruct):
     hasTask: bool
     suspended: bool
     resource: Resource
+    currentTaskId: bytes
+    taskAgeSeconds: int
 
 class WorkerStatus(CapnpStruct):
     workerId: WorkerID
@@ -112,6 +126,9 @@ class WorkerStatus(CapnpStruct):
     lastS: int
     itl: str
     processorStatuses: Any
+    hostname: str
+    netSentBytes: int
+    netRecvBytes: int
 
 class WorkerManagerStatus(CapnpStruct):
     workers: Any
@@ -200,6 +217,7 @@ class GraphTask(BaseMessage):
 class ClientHeartbeat(BaseMessage):
     resource: Resource
     latencyUS: int
+    hostname: str
 
 class ClientHeartbeatEcho(BaseMessage):
     objectStorageAddress: ObjectStorageAddress
@@ -215,6 +233,9 @@ class WorkerHeartbeat(BaseMessage):
     capabilities: Any
     workerManagerID: bytes
     memLimit: int
+    hostname: str
+    netSentBytes: int
+    netRecvBytes: int
 
 class WorkerHeartbeatEcho(BaseMessage):
     objectStorageAddress: ObjectStorageAddress
@@ -256,7 +277,19 @@ class ClientShutdownResponse(BaseMessage):
     accepted: bool
 
 class StateClient(BaseMessage): ...
-class StateObject(BaseMessage): ...
+
+class StateObject(BaseMessage):
+    class ObjectDetail(CapnpStruct):
+        objectId: ObjectID
+        name: bytes
+        objectType: ObjectMetadata.ObjectContentType
+        size: int
+        creator: ClientID
+        taskIds: Any
+        taskCount: int
+
+    objects: Any
+    totalObjects: int
 
 class StateBalanceAdvice(BaseMessage):
     workerId: WorkerID
@@ -284,6 +317,8 @@ class StateTask(BaseMessage):
     worker: WorkerID
     capabilities: Any
     metadata: bytes
+    objectBytes: int
+    client: ClientID
 
 class StateGraphTask(BaseMessage):
     graphTaskId: TaskID

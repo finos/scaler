@@ -1,4 +1,5 @@
 import abc
+import dataclasses
 from typing import Any, Dict, List, Optional, Set
 
 from scaler.protocol.capnp import (
@@ -34,6 +35,17 @@ class ConfigController(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
+@dataclasses.dataclass(frozen=True)
+class ObjectDetail:
+    """One object the scheduler tracks, as the monitor stream reports it."""
+
+    object_id: ObjectID
+    name: bytes
+    content_type: ObjectMetadata.ObjectContentType
+    size: int
+    creator: ClientID
+
+
 class ObjectController(Reporter):
     @abc.abstractmethod
     async def on_object_instruction(self, source: bytes, request: ObjectInstruction):
@@ -55,6 +67,18 @@ class ObjectController(Reporter):
 
     @abc.abstractmethod
     def clean_client(self, client_id: ClientID):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_object_size(self, object_id: bytes) -> int:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_largest_objects(self, limit: int) -> List[ObjectDetail]:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def object_count(self) -> int:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -135,6 +159,10 @@ class GraphTaskController(Reporter):
 class TaskController(Reporter):
     @abc.abstractmethod
     async def on_task_new(self, task: Task):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_task_ids_by_object(self, object_ids: Set[ObjectID]) -> Dict[ObjectID, List[TaskID]]:
         raise NotImplementedError()
 
     @abc.abstractmethod

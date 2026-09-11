@@ -28,7 +28,15 @@ struct ObjectRequestHeader {
         duplicateObjectID @3;
 
         # Request the server to give back internal information, result is returned as payload.
-        # schema: three uint64_t tuple (number of ids, number of objects (hashes), total actual object size in bytes)
+        # schema: a tuple of uint64_t, in order
+        #   0 number of object IDs
+        #   1 number of objects (hashes), so IDs minus what deduplication shares
+        #   2 total actual object size in bytes
+        #   3 number of requests waiting for an object that does not exist yet
+        #   4 number of distinct objects those requests are waiting for
+        #   5 seconds the oldest of those requests has waited
+        # A reader takes the fields the payload actually carries and treats the rest as zero, so a server
+        # that answers with fewer fields than the reader knows about stays readable.
         infoGetTotal @4;
     }
 }

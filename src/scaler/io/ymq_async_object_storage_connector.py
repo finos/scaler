@@ -4,7 +4,7 @@ from typing import Dict, Optional, Tuple
 
 from scaler.config.common.security import SecurityConfig
 from scaler.config.types.address import AddressConfig
-from scaler.io.mixins import AsyncObjectStorageConnector
+from scaler.io.mixins import AsyncObjectStorageConnector, ObjectStorageTotals
 from scaler.io.ymq import Bytes, ConnectorSocket, IOContext, YMQException
 from scaler.io.ymq.utils import to_tls_config
 from scaler.protocol.capnp import ObjectRequestHeader, ObjectResponseHeader
@@ -29,6 +29,7 @@ class YMQAsyncObjectStorageConnector(AsyncObjectStorageConnector):
 
         self._next_request_id = 0
         self._pending_get_requests: Dict[ObjectID, asyncio.Future] = {}
+        self._pending_info_request: Optional[asyncio.Future] = None
 
         self._lock = asyncio.Lock()
         self._socket: Optional[ConnectorSocket] = None
@@ -76,6 +77,10 @@ class YMQAsyncObjectStorageConnector(AsyncObjectStorageConnector):
 
         header, payload = response
 
+        if header.responseType == ObjectResponseHeader.ObjectResponseType.infoGetTotalOK:
+            self.__answer_info_request(payload)
+            return
+
         if header.responseType != ObjectResponseHeader.ObjectResponseType.getOK:
             return
 
@@ -115,6 +120,28 @@ class YMQAsyncObjectStorageConnector(AsyncObjectStorageConnector):
             ObjectRequestHeader.ObjectRequestType.duplicateObjectID,
             object_id_payload,
         )
+
+    async def info_get_total(self) -> ObjectStorageTotals:
+        """What the storage server holds. One request may be in flight: the answer carries no request id."""
+        if self._pending_info_request is not None:
+            raise ObjectStorageException("an info-get-total request is already in flight.")
+
+        self._pending_info_request = asyncio.get_running_loop().create_future()
+        try:
+            await self.__send_request(
+                ObjectID(b"\x00" * 32), 0, ObjectRequestHeader.ObjectRequestType.infoGetTotal, None
+            )
+            return await self._pending_info_request
+        finally:
+            self._pending_info_request = None
+
+    def __answer_info_request(self, payload: bytes) -> None:
+        pending = self._pending_info_request
+        if pending is None or pending.done():
+            logger.warning("unrequested info-get-total response.")
+            return
+
+        pending.set_result(ObjectStorageTotals.from_payload(payload))
 
     def __ensure_is_connected(self):
         if self._socket is None:

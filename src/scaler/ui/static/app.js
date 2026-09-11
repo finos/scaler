@@ -2,25 +2,23 @@
 "use strict";
 
 // -- State --
-var ws = null;
-var reconnectDelay = 500;
-var workerSortField = null;  // current sort column field name (the server does the sorting)
-var workerSortAsc = true;    // sort direction
+var browserId = null;   // this browser's id on the server, given with its first full state
 var lastWorkersData = [];    // this browser's page of worker rows, already sorted by the server
 var workersTotal = 0;        // full fleet size, of which this browser holds one page
-var taskLogTotal = 0;  // completed tasks seen by the server since it started, uncapped by the display ring
-var TASK_LOG_MAX_SIZE = 100;  // overridden by server's task_log_max_size on initial state
-var taskLogData = [];        // full task-log data, newest first, up to TASK_LOG_MAX_SIZE
-var taskLogById = {};        // task_id -> entry, for in-place status updates
-// The worker views are paged by the server, so the browser never receives the whole fleet. The task
-// log is small and bounded server-side, so it stays paged here with PAGE_SIZE.
-var PAGE_SIZE = 50;
+var taskLogTotal = 0;  // completed tasks the server has seen since it started, however few it retains
+var taskLogHeld = 0;   // tasks the server still holds, of which this browser has one page
+var taskLogData = [];  // this browser's page of task rows, newest first
+// Every table is paged by the server, so the browser holds one page rather than the whole history.
 var workersPage = 0;
 var workersPages = 1;
 var taskLogPage = 0;
-var processorsPage = 0;
-var processorsPages = 1;
-var processorsTotal = 0;
+var taskLogPages = 1;
+var workerDetailsPage = 0;
+var workerDetailsPages = 1;
+var workerDetailsTotal = 0;
+var objectsPage = 0;
+var objectsPages = 1;
+var objectsHeld = 0;
 var streamPage = 0;
 var streamPages = 1;
 var streamTotal = 0;
@@ -39,9 +37,13 @@ var memoryNeedsRedraw = false;
 var activeTab = "live";          // currently visible tab; hidden tabs are cached, not re-rendered
 var lastSchedulerData = null;    // latest cached payloads, replayed on tab switch
 var lastManagersData = [];
-var lastProcessorsData = [];
+var lastWorkerDetails = [];
 var streamLegendData = [];       // cached stream legend + manager legend for re-render on switch
 var streamManagerLegendData = [];
+// What this tab shows, kept across a reload and sent with every new stream so it opens on the same view.
+var STATE_STORAGE_KEY = "scaler-web-gui";
+var RECONNECT_DELAY_MS = 2000;
+var saved = loadSavedState();
 
 // -- DOM refs --
 var $ = function(id) { return document.getElementById(id); };
@@ -63,7 +65,34 @@ var streamAxis = $("stream-axis");
 var streamLegend = $("stream-legend");
 var memoryCanvas = $("memory-canvas");
 var memoryCtx = memoryCanvas.getContext("2d");
-var processorsContainer = $("processors-container");
+var workerDetailsContainer = $("workerdetails-container");
+var workerDetailsCount = $("workerdetails-total");
+var machinesBody = $("machines-body");
+var ossObjects = $("oss-objects");
+var ossUnique = $("oss-unique");
+var ossSize = $("oss-size");
+var ossShared = $("oss-shared");
+var ossPending = $("oss-pending");
+var ossOldest = $("oss-oldest");
+var lastStorageData = null;
+var taskEventsBody = $("taskevents-body");
+var taskEventsCount = $("taskevents-count");
+var taskEventsClear = $("taskevents-clear");
+var taskEventsFilterLabel = $("taskevents-filter-label");
+var lastTaskEvents = [];     // this browser's page of event rows, newest first
+var taskEventsPage = 0;
+var taskEventsPages = 1;
+var taskEventsHeld = 0;      // events the server holds under the current filter
+var taskEventFilter = "";    // task id the server is filtering to, empty for every task
+var machinesTotal = $("machines-total");
+var lastMachinesData = [];
+var clientsBody = $("clients-body");
+var clientsTotal = $("clients-total");
+var lastClientsData = [];
+var objectsBody = $("objects-body");
+var objectsTotal = $("objects-total");
+var lastObjectsData = [];
+var lastObjectsTotal = 0;
 var tooltip = $("tooltip");
 
 // -- Tabs --
@@ -72,19 +101,22 @@ var panels = document.querySelectorAll(".tab-panel");
 
 for (var i = 0; i < tabs.length; i++) {
     tabs[i].addEventListener("click", (function(tab) {
-        return function() {
-            for (var j = 0; j < tabs.length; j++) {
-                tabs[j].classList.remove("active");
-                panels[j].classList.remove("active");
-            }
-            tab.classList.add("active");
-            activeTab = tab.getAttribute("data-tab");
-            var panel = $("panel-" + activeTab);
-            if (panel) panel.classList.add("active");
-            updateFitPageStream();
-            renderActiveTab();
-        };
+        return function() { selectTab(tab.getAttribute("data-tab")); };
     })(tabs[i]));
+}
+
+function selectTab(name) {
+    for (var j = 0; j < tabs.length; j++) {
+        tabs[j].classList.toggle("active", tabs[j].getAttribute("data-tab") === name);
+        panels[j].classList.remove("active");
+    }
+    activeTab = name;
+    saved.tab = name;
+    saveState();
+    var panel = $("panel-" + name);
+    if (panel) panel.classList.add("active");
+    updateFitPageStream();
+    renderActiveTab();
 }
 
 // Render the now-visible tab from the latest cached data. Hidden tabs are skipped on update; switching to
@@ -92,12 +124,21 @@ for (var i = 0; i < tabs.length; i++) {
 function renderActiveTab() {
     if (activeTab === "live") {
         if (lastSchedulerData) renderScheduler(lastSchedulerData);
+        if (lastStorageData) renderStorage(lastStorageData);
         renderWorkers();
         renderManagers();
-    } else if (activeTab === "tasklog") {
+    } else if (activeTab === "tasklist") {
         renderTaskLog();
-    } else if (activeTab === "processors") {
-        renderProcessors();
+    } else if (activeTab === "tasklog") {
+        renderTaskEvents();
+    } else if (activeTab === "workers") {
+        renderWorkerDetails();
+    } else if (activeTab === "machines") {
+        renderMachines();
+    } else if (activeTab === "clients") {
+        renderClients();
+    } else if (activeTab === "objects") {
+        renderObjects();
     } else if (activeTab === "stream") {
         renderStreamStatic();
         streamNeedsRedraw = true;
@@ -137,14 +178,6 @@ function renderPager(elId, page, totalPages, total, onPage) {
     el.appendChild(next);
 }
 
-// Clamp a page index and return the slice bounds ([start, end)) for the current page over `total` items.
-function pageSlice(page, total, size) {
-    size = size || PAGE_SIZE;
-    var totalPages = Math.max(1, Math.ceil(total / size));
-    if (page >= totalPages) page = totalPages - 1;
-    if (page < 0) page = 0;
-    return { page: page, totalPages: totalPages, start: page * size, end: page * size + size };
-}
 
 // -- Fit Page Toggle --
 var fitPageBtn = $("fit-page-btn");
@@ -192,41 +225,68 @@ setupToggle("scale-toggle", function(val) {
 });
 
 function sendSettings(settings) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "settings", settings: settings }));
-    }
+    Object.assign(saved.settings, settings);
+    saveState();
+    postView({ settings: settings });
 }
 
-// Tell the server what this browser is looking at; it answers immediately with just that view.
+// Tell the server what this browser is looking at. It answers with just that view.
 function sendView(view) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "view", view: view }));
-    }
+    Object.assign(saved.view, view);
+    saveState();
+    postView({ view: view });
 }
 
-// -- WebSocket --
-function connect() {
-    var proto = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(proto + "//" + location.host + "/ws");
+function loadSavedState() {
+    var state = null;
+    try {
+        state = JSON.parse(sessionStorage.getItem(STATE_STORAGE_KEY));
+    } catch (e) {}
+    if (!state || typeof state !== "object") state = {};
+    return { tab: state.tab || "live", view: state.view || {}, settings: state.settings || {} };
+}
 
-    ws.onopen = function() {
+// Without storage the view lasts as long as the page does.
+function saveState() {
+    try {
+        sessionStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(saved));
+    } catch (e) {}
+}
+
+// The stream is one-way, so a view change is a request of its own; browserId says whose view to move.
+function postView(body) {
+    if (browserId === null) return;
+    body.browser_id = browserId;
+    fetch("/view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    }).then(function(response) {
+        return response.ok ? response.json() : null;
+    }).then(function(data) {
+        if (data) handleMessage(data);
+    }).catch(function() {});
+}
+
+// -- Server-sent events --
+// A new stream opens on the view this tab saved, so a reload or a dropped stream comes back to what it showed.
+// EventSource would retry the URL it was built with, which holds the view of that moment, so this reconnects itself.
+function connect() {
+    var source = new EventSource("/events?state=" + encodeURIComponent(JSON.stringify(saved)));
+
+    source.onopen = function() {
         connStatus.textContent = "Connected";
         connStatus.classList.add("connected");
-        reconnectDelay = 500;
     };
 
-    ws.onclose = function() {
+    source.onerror = function() {
         connStatus.textContent = "Disconnected";
         connStatus.classList.remove("connected");
-        setTimeout(connect, Math.min(reconnectDelay, 10000));
-        reconnectDelay *= 2;
+        source.close();
+        setTimeout(connect, RECONNECT_DELAY_MS);
     };
 
-    ws.onerror = function() {
-        ws.close();
-    };
-
-    ws.onmessage = function(evt) {
+    source.onmessage = function(evt) {
         var data;
         try {
             data = JSON.parse(evt.data);
@@ -237,42 +297,26 @@ function connect() {
     };
 }
 
+// A full state and an update carry the same sections, the full state adding only the browser id.
 function handleMessage(data) {
-    if (data.type === "full_state") {
-        handleFullState(data);
-        return;
-    }
+    if (data.type === "full_state" && typeof data.browser_id === "number") browserId = data.browser_id;
 
-    if (data.scheduler) {
-        updateScheduler(data.scheduler);
-    }
-    if (data.workers) {
-        applyPageInfo(data);
-        updateWorkers(data.workers);
-    }
-    if (data.worker_managers) {
-        updateWorkerManagers(data.worker_managers);
-    }
-    if (data.worker_events) {
-        handleWorkerEvents(data.worker_events);
-    }
-    if (data.task_updates) {
-        if (typeof data.task_log_total === "number") taskLogTotal = data.task_log_total;
-        handleTaskUpdates(data.task_updates);
-    }
-    if (data.task_stream) {
-        updateTaskStream(data.task_stream);
-    }
-    if (data.memory_chart) {
-        updateMemoryChart(data.memory_chart);
-    }
-    if (data.processors) {
-        applyPageInfo(data);
-        updateProcessors(data.processors);
-    }
-    if (data.settings) {
-        applySettings(data.settings);
-    }
+    applyPageInfo(data);
+    if (data.scheduler) updateScheduler(data.scheduler);
+    if (data.workers) updateWorkers(data.workers);
+    if (data.machines) updateMachines(data.machines);
+    if (data.clients) updateClients(data.clients);
+    if (data.storage) updateStorage(data.storage);
+    if (data.objects) updateObjects(data.objects, data.objects_total);
+    if (data.task_log) updateTaskLog(data.task_log);
+    if (data.task_events) updateTaskEvents(data.task_events);
+    if (data.worker_managers) updateWorkerManagers(data.worker_managers);
+    if (data.worker_events) handleWorkerEvents(data.worker_events);
+    if (data.task_stream) updateTaskStream(data.task_stream);
+    if (data.memory_chart && data.memory_chart.cpu_points) lastCpuPoints = data.memory_chart.cpu_points;
+    if (data.memory_chart) updateMemoryChart(data.memory_chart);
+    if (data.worker_details) updateWorkerDetails(data.worker_details);
+    if (data.settings) applySettings(data.settings);
 }
 
 // The server clamps the page it actually served, so mirror that back rather than what we asked for.
@@ -280,27 +324,20 @@ function applyPageInfo(data) {
     if (typeof data.workers_total === "number") workersTotal = data.workers_total;
     if (typeof data.workers_page === "number") workersPage = data.workers_page;
     if (typeof data.workers_pages === "number") workersPages = data.workers_pages;
-    if (typeof data.processors_total === "number") processorsTotal = data.processors_total;
-    if (typeof data.processors_page === "number") processorsPage = data.processors_page;
-    if (typeof data.processors_pages === "number") processorsPages = data.processors_pages;
-}
-
-function handleFullState(data) {
-    if (data.scheduler) updateScheduler(data.scheduler);
-    applyPageInfo(data);
-    if (data.workers) updateWorkers(data.workers);
-    if (data.worker_managers) updateWorkerManagers(data.worker_managers);
-    if (typeof data.task_log_max_size === "number" && data.task_log_max_size > 0) {
-        TASK_LOG_MAX_SIZE = data.task_log_max_size;
-    }
-    taskLogTotal = typeof data.task_log_total === "number" ? data.task_log_total : 0;
-    if (data.task_log) {
-        setTaskLog(data.task_log);
-    }
-    if (data.task_stream) updateTaskStream(data.task_stream);
-    if (data.memory_chart) updateMemoryChart(data.memory_chart);
-    if (data.processors) updateProcessors(data.processors);
-    if (data.settings) applySettings(data.settings);
+    if (typeof data.worker_details_total === "number") workerDetailsTotal = data.worker_details_total;
+    if (typeof data.worker_details_page === "number") workerDetailsPage = data.worker_details_page;
+    if (typeof data.worker_details_pages === "number") workerDetailsPages = data.worker_details_pages;
+    if (typeof data.objects_held === "number") objectsHeld = data.objects_held;
+    if (typeof data.objects_page === "number") objectsPage = data.objects_page;
+    if (typeof data.objects_pages === "number") objectsPages = data.objects_pages;
+    if (typeof data.task_log_total === "number") taskLogTotal = data.task_log_total;
+    if (typeof data.task_log_held === "number") taskLogHeld = data.task_log_held;
+    if (typeof data.task_log_page === "number") taskLogPage = data.task_log_page;
+    if (typeof data.task_log_pages === "number") taskLogPages = data.task_log_pages;
+    if (typeof data.task_events_held === "number") taskEventsHeld = data.task_events_held;
+    if (typeof data.task_events_page === "number") taskEventsPage = data.task_events_page;
+    if (typeof data.task_events_pages === "number") taskEventsPages = data.task_events_pages;
+    if (typeof data.task_events_task === "string") taskEventFilter = data.task_events_task;
 }
 
 function applySettings(settings) {
@@ -316,6 +353,24 @@ function applySettings(settings) {
             btns2[i].classList.toggle("active", btns2[i].getAttribute("data-value") === settings.memory_scale);
         }
     }
+}
+
+// -- Live Tab: Object Storage --
+function updateStorage(storage) {
+    lastStorageData = storage;
+    if (activeTab === "live") renderStorage(storage);
+}
+
+// A pending count that does not fall is a fetch nobody can answer: get_object waits without a bound.
+function renderStorage(storage) {
+    ossObjects.textContent = storage.objects;
+    ossUnique.textContent = storage.unique_objects;
+    ossSize.textContent = storage.size;
+    ossShared.textContent = storage.shared;
+    ossPending.textContent = storage.pending + (storage.pending ? " (" + storage.pending_objects + " objects)" : "");
+    ossPending.classList.toggle("stale", storage.pending > 0);
+    ossOldest.textContent = storage.oldest_pending;
+    ossOldest.classList.toggle("stale", storage.pending > 0);
 }
 
 // -- Live Tab: Scheduler --
@@ -412,12 +467,164 @@ function renderManagers() {
 
 // -- Live Tab: Workers --
 // Column order of the workers table; a header click sends the field name to the server.
-var WORKER_FIELDS = ["name", "manager_id", "agt_cpu", "agt_rss", "proc_cpu", "proc_rss", "mem_used_pct",
-                     "free", "sent", "queued", "suspended", "lag", "itl", "last_seen", "capabilities"];
+var WORKER_FIELDS = ["name", "manager_id", "host", "task", "task_age", "agt_cpu", "agt_rss", "proc_cpu",
+                     "proc_rss", "mem_used_pct", "free", "sent", "queued", "suspended", "lag", "itl",
+                     "last_seen", "capabilities"];
 
 function updateWorkers(workers) {
     lastWorkersData = workers;
     if (activeTab === "live") renderWorkers();
+}
+
+var MACHINE_FIELDS = ["host", "workers", "busy", "idle", "managers", "cpu", "rss", "rss_free",
+                      "mem_used_pct", "queued", "sent", "net_sent", "net_recv"];
+
+var TASK_EVENT_FIELDS = ["time", "task_id", "event", "client", "worker", "function", "detail"];
+
+// Column order of the task list, shared by its header row and the cells below it.
+var TASK_LOG_FIELDS = ["task_id", "function", "client", "worker", "time", "duration", "peak_mem", "objects",
+                       "status", "capabilities"];
+
+var lastCpuPoints = [];
+var lastCpuTicks = [];  // the right axis, from 0 up to its last tick
+
+function updateTaskEvents(rows) {
+    lastTaskEvents = rows;
+    if (activeTab === "tasklog") renderTaskEvents();
+}
+
+// Filtering to one task and paging both run on the server, so this renders the page it was handed.
+function renderTaskEvents() {
+    taskEventsBody.innerHTML = "";
+    for (var i = 0; i < lastTaskEvents.length; i++) {
+        var ev = lastTaskEvents[i];
+        var tr = document.createElement("tr");
+        tr.className = "clickable";
+        tr.title = "Click to show only this task";
+        (function(taskId) {
+            tr.addEventListener("click", function() { showOnlyTask(taskId); });
+        })(ev.task_id);
+        for (var f = 0; f < TASK_EVENT_FIELDS.length; f++) {
+            var td = document.createElement("td");
+            var value = ev[TASK_EVENT_FIELDS[f]];
+            if (TASK_EVENT_FIELDS[f] === "task_id" && value) value = value.slice(0, 12);
+            td.textContent = (value === undefined || value === null || value === "") ? "\u2014" : value;
+            tr.appendChild(td);
+        }
+        taskEventsBody.appendChild(tr);
+    }
+    if (taskEventsCount) taskEventsCount.textContent = "(" + taskEventsHeld + ")";
+    if (taskEventsClear) taskEventsClear.style.display = taskEventFilter ? "" : "none";
+    if (taskEventsFilterLabel) {
+        taskEventsFilterLabel.textContent = taskEventFilter ? "filtered to " + taskEventFilter.slice(0, 12) : "";
+    }
+    renderPagers("taskevents-pager", taskEventsPage, taskEventsPages, taskEventsHeld, function(p) {
+        taskEventsPage = p;
+        sendView({ task_events_page: p });
+    });
+}
+
+function showOnlyTask(taskId) {
+    taskEventFilter = taskId;
+    taskEventsPage = 0;
+    sendView({ task_events_task: taskId, task_events_page: 0 });
+}
+
+if (taskEventsClear) {
+    taskEventsClear.addEventListener("click", function() { showOnlyTask(""); });
+}
+
+function updateMachines(machines) {
+    lastMachinesData = machines || [];
+    if (activeTab === "machines") renderMachines();
+}
+
+function renderMachines() {
+    machinesBody.innerHTML = "";
+    for (var i = 0; i < lastMachinesData.length; i++) {
+        var m = lastMachinesData[i];
+        var tr = document.createElement("tr");
+        for (var f = 0; f < MACHINE_FIELDS.length; f++) {
+            var td = document.createElement("td");
+            var value = m[MACHINE_FIELDS[f]];
+            td.textContent = (value === undefined || value === null) ? "\u2014" : value;
+            tr.appendChild(td);
+        }
+        machinesBody.appendChild(tr);
+    }
+    if (machinesTotal) machinesTotal.textContent = lastMachinesData.length ? "(" + lastMachinesData.length + ")" : "";
+}
+
+var CLIENT_FIELDS = ["client", "host", "tasks", "finished", "failed", "cpu", "rss", "latency",
+                     "connected", "last_seen"];
+
+function updateClients(clients) {
+    lastClientsData = clients || [];
+    if (activeTab === "clients") renderClients();
+}
+
+function renderClients() {
+    clientsBody.innerHTML = "";
+    for (var i = 0; i < lastClientsData.length; i++) {
+        var c = lastClientsData[i];
+        var tr = document.createElement("tr");
+        for (var f = 0; f < CLIENT_FIELDS.length; f++) {
+            var td = document.createElement("td");
+            var value = c[CLIENT_FIELDS[f]];
+            td.textContent = (value === undefined || value === null) ? "\u2014" : value;
+            if (CLIENT_FIELDS[f] === "client") td.title = c.full_client || "";
+            tr.appendChild(td);
+        }
+        clientsBody.appendChild(tr);
+    }
+    if (clientsTotal) clientsTotal.textContent = lastClientsData.length ? "(" + lastClientsData.length + ")" : "";
+}
+
+function updateObjects(objects, total) {
+    lastObjectsData = objects || [];
+    if (typeof total === "number") lastObjectsTotal = total;
+    if (activeTab === "objects") renderObjects();
+}
+
+// The scheduler sends the biggest objects it tracks, so the pager walks those rather than the whole store.
+function renderObjectsCount() {
+    if (!objectsTotal) return;
+    objectsTotal.textContent = objectsHeld < lastObjectsTotal
+        ? "(" + objectsHeld + " biggest of " + lastObjectsTotal + ")"
+        : "(" + lastObjectsTotal + ")";
+}
+
+var OBJECT_FIELDS = ["object", "name", "type", "size", "client", "tasks"];
+
+// What each column's tooltip carries, when the cell itself is a shortened form.
+var OBJECT_TITLE_FIELDS = {
+    "object": function(o) { return o.object_id || ""; },
+    "name": function(o) { return o.full_name || ""; },
+    "client": function(o) { return o.full_client || ""; },
+    "tasks": function(o) { return (o.task_ids || []).join(" "); }
+};
+
+function renderObjects() {
+    objectsBody.innerHTML = "";
+    for (var i = 0; i < lastObjectsData.length; i++) {
+        var o = lastObjectsData[i];
+        var tr = document.createElement("tr");
+        for (var f = 0; f < OBJECT_FIELDS.length; f++) {
+            var field = OBJECT_FIELDS[f];
+            var td = document.createElement("td");
+            var value = o[field];
+            var title = OBJECT_TITLE_FIELDS[field];
+            if (title) td.title = title(o);
+            td.textContent = (value === undefined || value === null || value === "") ? "\u2014" : value;
+            tr.appendChild(td);
+        }
+        objectsBody.appendChild(tr);
+    }
+    renderObjectsCount();
+    renderPagers("objects-pager", objectsPage, objectsPages, objectsHeld, function(p) {
+        objectsPage = p;
+        sendView({ objects_page: p });
+    });
 }
 
 function renderWorkers() {
@@ -443,36 +650,49 @@ function updateWorkersCountBadge() {
 }
 
 // Sorting runs on the server, so a click just sets the indicator and asks for page 0 of the new order.
-function setupWorkerSort() {
-    var thead = workersBody.parentElement.querySelector("thead tr");
-    if (!thead) return;
-    var ths = thead.children;
-    for (var i = 0; i < ths.length; i++) {
+// `table` prefixes the view fields, and `fields` names the column each header sorts by, in header order.
+function setupSort(table, tableId, fields) {
+    var tableElement = $(tableId);
+    if (!tableElement) return;
+    var headerRow = tableElement.querySelector("thead tr");
+    if (!headerRow) return;
+
+    var ths = headerRow.children;
+    var sortField = saved.view[table + "_sort"] || null;
+    var ascending = saved.view[table + "_sort_ascending"] !== false;
+    for (var i = 0; i < ths.length && i < fields.length; i++) {
         ths[i].classList.add("sortable");
-        ths[i].setAttribute("data-sort-field", WORKER_FIELDS[i]);
+        ths[i].setAttribute("data-sort-field", fields[i]);
+        if (fields[i] === sortField) ths[i].classList.add(ascending ? "sort-asc" : "sort-desc");
         (function(th, field) {
             th.addEventListener("click", function() {
-                if (workerSortField === field) {
-                    workerSortAsc = !workerSortAsc;
-                } else {
-                    workerSortField = field;
-                    workerSortAsc = true;
-                }
-                // update header indicators
-                var allTh = th.parentElement.children;
-                for (var k = 0; k < allTh.length; k++) {
-                    allTh[k].classList.remove("sort-asc", "sort-desc");
-                }
-                th.classList.add(workerSortAsc ? "sort-asc" : "sort-desc");
-                workersPage = 0;  // jump to the top of the new sort order
-                sendView({ workers_sort: field, workers_sort_ascending: workerSortAsc, workers_page: 0 });
+                ascending = sortField === field ? !ascending : true;
+                sortField = field;
+                for (var k = 0; k < ths.length; k++) ths[k].classList.remove("sort-asc", "sort-desc");
+                th.classList.add(ascending ? "sort-asc" : "sort-desc");
+                var change = {};
+                change[table + "_sort"] = field;
+                change[table + "_sort_ascending"] = ascending;
+                change[table + "_page"] = 0;
+                sendView(change);
             });
-        })(ths[i], WORKER_FIELDS[i]);
+        })(ths[i], fields[i]);
     }
 }
-setupWorkerSort();
 
-var WORKER_GAUGE_FIELDS = {"agt_cpu": 1, "agt_rss": 1, "proc_cpu": 1, "proc_rss": 1, "mem_used_pct": 1};
+setupSort("workers", "workers-table", WORKER_FIELDS);
+setupSort("task_log", "tasklog-table", TASK_LOG_FIELDS);
+setupSort("task_events", "taskevents-table", TASK_EVENT_FIELDS);
+setupSort("objects", "objects-table", OBJECT_FIELDS);
+
+// Columns drawn as a bar: a number is the fixed maximum, a string names the row field to divide by.
+var WORKER_GAUGE_FIELDS = {
+    "agt_cpu": {max: 100, unit: "%"},
+    "agt_rss": {max: "total_rss", unit: ""},
+    "proc_cpu": {max: 100, unit: "%"},
+    "proc_rss": {max: "total_rss", unit: ""},
+    "mem_used_pct": {max: 100, unit: "%"}
+};
 
 function createWorkerRow(w) {
     var tr = document.createElement("tr");
@@ -486,7 +706,7 @@ function createWorkerRow(w) {
     return tr;
 }
 
-// Static HTML gauge, still used by the processors tree (which is rebuilt wholesale anyway).
+// Gauge as an HTML string, for the tables that are rebuilt wholesale.
 function makeGaugeHTML(value, max, unit) {
     if (max <= 0) max = 100;
     var pct = Math.min(100, (value / max) * 100);
@@ -523,25 +743,25 @@ function setGauge(td, value, max, unit) {
     td._gaugeValue.textContent = value + (unit || "");
 }
 
+// Cells are filled from WORKER_FIELDS, the list the row was built from, so column order lives in one place.
 function updateWorkerRow(tr, w) {
-    var cells = tr.children;
-    cells[0].textContent = w.name;
-    cells[0].title = w.full_name || w.name;
-    cells[1].textContent = w.manager_id || "—";
-    setGauge(cells[2], w.agt_cpu, 100, "%");
-    setGauge(cells[3], w.agt_rss, w.total_rss, "");
-    setGauge(cells[4], w.proc_cpu, 100, "%");
-    setGauge(cells[5], w.proc_rss, w.total_rss, "");
-    setGauge(cells[6], w.mem_used_pct, 100, "%");
-    cells[6].title = w.mem_limit ? (w.mem_used + " / " + w.mem_limit + " MB used") : "";
-    cells[7].textContent = w.free;
-    cells[8].textContent = w.sent;
-    cells[9].textContent = w.queued;
-    cells[10].textContent = w.suspended;
-    cells[11].textContent = w.lag;
-    cells[12].textContent = w.itl;
-    cells[13].textContent = w.last_seen;
-    cells[14].textContent = w.capabilities;
+    for (var i = 0; i < WORKER_FIELDS.length; i++) {
+        var field = WORKER_FIELDS[i];
+        var gauge = WORKER_GAUGE_FIELDS[field];
+        if (gauge) {
+            setGauge(tr.children[i], w[field], typeof gauge.max === "string" ? w[gauge.max] : gauge.max, gauge.unit);
+        } else {
+            tr.children[i].textContent = (w[field] === undefined || w[field] === null || w[field] === "")
+                ? "—" : w[field];
+        }
+    }
+    workerCell(tr, "name").title = w.full_name || w.name;
+    workerCell(tr, "host").title = w.host;
+    workerCell(tr, "mem_used_pct").title = w.mem_limit ? (w.mem_used + " / " + w.mem_limit + " MB used") : "";
+}
+
+function workerCell(tr, field) {
+    return tr.querySelector('[data-field="' + field + '"]');
 }
 
 function handleWorkerEvents(events) {
@@ -573,45 +793,19 @@ function statusClass(status) {
     return "status-fail";
 }
 
-function handleTaskUpdates(entries) {
-    for (var i = 0; i < entries.length; i++) {
-        var e = entries[i];
-        var existing = taskLogById[e.task_id];
-        if (existing) {
-            for (var k in e) { if (Object.prototype.hasOwnProperty.call(e, k)) existing[k] = e[k]; }
-        } else {
-            taskLogData.unshift(e);  // newest first
-            taskLogById[e.task_id] = e;
-            while (taskLogData.length > TASK_LOG_MAX_SIZE) {
-                var dropped = taskLogData.pop();
-                delete taskLogById[dropped.task_id];
-            }
-        }
-    }
-    if (activeTab === "tasklog") renderTaskLog();
+function updateTaskLog(rows) {
+    taskLogData = rows;
+    if (activeTab === "tasklist") renderTaskLog();
     else updateTaskLogBadge();  // the badge (server total) stays current even while the tab is hidden
 }
 
-// full_state: replace the whole task log (active + completed, newest first, already capped by the server).
-function setTaskLog(entries) {
-    taskLogData = entries.slice(0, TASK_LOG_MAX_SIZE);
-    taskLogById = {};
-    for (var i = 0; i < taskLogData.length; i++) taskLogById[taskLogData[i].task_id] = taskLogData[i];
-    taskLogPage = 0;
-    if (activeTab === "tasklog") renderTaskLog();
-    else updateTaskLogBadge();
-}
-
 function renderTaskLog() {
-    var pg = pageSlice(taskLogPage, taskLogData.length);
-    taskLogPage = pg.page;
-    var pageEntries = taskLogData.slice(pg.start, pg.end);
     tasklogBody.innerHTML = "";
-    for (var i = 0; i < pageEntries.length; i++) tasklogBody.appendChild(makeTaskLogRow(pageEntries[i]));
+    for (var i = 0; i < taskLogData.length; i++) tasklogBody.appendChild(makeTaskLogRow(taskLogData[i]));
     updateTaskLogBadge();
-    renderPagers("tasklog-pager", taskLogPage, pg.totalPages, taskLogData.length, function(p) {
+    renderPagers("tasklog-pager", taskLogPage, taskLogPages, taskLogHeld, function(p) {
         taskLogPage = p;
-        renderTaskLog();
+        sendView({ task_log_page: p });
     });
 }
 
@@ -621,43 +815,53 @@ function makeCell(text) {
     return td;
 }
 
+// Cells that carry more than the row's own text; every other column is its value.
+var TASK_LOG_CELLS = {
+    task_id: function(e) {
+        var td = document.createElement("td");
+        var span = document.createElement("span");
+        span.className = "task-id";
+        span.textContent = e.task_id;
+        span.title = e.task_id;
+        span.addEventListener("click", function() {
+            if (navigator.clipboard) navigator.clipboard.writeText(e.task_id);
+        });
+        td.appendChild(span);
+        return td;
+    },
+    client: function(e) {
+        var td = makeCell(e.client || "\u2014");
+        td.title = e.full_client || e.client || "";
+        return td;
+    },
+    worker: function(e) {
+        var td = makeCell(e.worker || "");
+        td.title = e.full_worker || e.worker || "";
+        return td;
+    },
+    time: function(e) { return makeCell(formatTime(e.time)); },
+    status: function(e) {
+        var td = makeCell(e.status);
+        td.className = statusClass(e.status);
+        return td;
+    }
+};
+
 function makeTaskLogRow(e) {
     var tr = document.createElement("tr");
     tr.dataset.taskId = e.task_id;
-
-    var tdId = document.createElement("td");
-    var span = document.createElement("span");
-    span.className = "task-id";
-    span.textContent = e.task_id;
-    span.title = e.task_id;
-    span.addEventListener("click", (function(id) {
-        return function() { if (navigator.clipboard) navigator.clipboard.writeText(id); };
-    })(e.task_id));
-    tdId.appendChild(span);
-    tr.appendChild(tdId);
-
-    tr.appendChild(makeCell(e.function));
-    var tdWorker = makeCell(e.worker || "");
-    tdWorker.title = e.full_worker || e.worker || "";
-    tr.appendChild(tdWorker);
-    tr.appendChild(makeCell(formatTime(e.time)));
-    tr.appendChild(makeCell(e.duration));
-    tr.appendChild(makeCell(e.peak_mem));
-    var tdStatus = makeCell(e.status);
-    tdStatus.className = statusClass(e.status);
-    tr.appendChild(tdStatus);
-    tr.appendChild(makeCell(e.capabilities));
+    for (var i = 0; i < TASK_LOG_FIELDS.length; i++) {
+        var field = TASK_LOG_FIELDS[i];
+        tr.appendChild(TASK_LOG_CELLS[field] ? TASK_LOG_CELLS[field](e) : makeCell(e[field]));
+    }
     return tr;
 }
 
-// Badge shows the running total of completed tasks; once it passes the display cap it appends the cap it is
-// windowed to, e.g. "501 (showing 500)".
+// Badge counts every completed task, and once the server drops the oldest, "60123 (holding 50000)".
 function updateTaskLogBadge() {
-    if (taskLogTotal > TASK_LOG_MAX_SIZE) {
-        tasklogCount.textContent = taskLogTotal + " (showing " + TASK_LOG_MAX_SIZE + ")";
-    } else {
-        tasklogCount.textContent = taskLogTotal;
-    }
+    tasklogCount.textContent = taskLogTotal > taskLogHeld
+        ? taskLogTotal + " (holding " + taskLogHeld + ")"
+        : taskLogTotal;
 }
 
 // -- Task Stream (Canvas) --
@@ -976,13 +1180,16 @@ streamCanvas.addEventListener("mouseleave", function() {
     tooltip.classList.remove("visible");
 });
 
-// -- Memory Chart (Canvas) --
+// -- Memory and CPU Chart (Canvas) --
 var MEM_LABEL_WIDTH = 80;
-var MEM_PADDING = { top: 20, right: 20, bottom: 30, left: MEM_LABEL_WIDTH };
+var CPU_LABEL_WIDTH = 60;
+var CPU_COLOR = "#d97706";
+var MEM_PADDING = { top: 20, right: CPU_LABEL_WIDTH, bottom: 30, left: MEM_LABEL_WIDTH };
 
 function updateMemoryChart(data) {
     memoryPoints = data.points || [];
     memoryYTicks = data.y_ticks || [];
+    lastCpuTicks = data.cpu_ticks || [];
     memoryScale = data.scale || "linear";
     streamWindow = data.window || streamWindow;
     if (activeTab === "stream") memoryNeedsRedraw = true;
@@ -1013,7 +1220,7 @@ function drawMemoryChart() {
         memoryCtx.fillStyle = "#94a3b8";
         memoryCtx.font = "13px " + getComputedStyle(document.body).fontFamily;
         memoryCtx.textAlign = "center";
-        memoryCtx.fillText("No memory data", cw / 2, ch / 2);
+        memoryCtx.fillText("No samples yet", cw / 2, ch / 2);
         return;
     }
 
@@ -1023,6 +1230,7 @@ function drawMemoryChart() {
         if (memoryPoints[i].y > maxY) maxY = memoryPoints[i].y;
     }
     maxY = Math.max(maxY, 1024 * 1024 * 1024); // min 1GB
+    var cpuMax = lastCpuTicks.length ? lastCpuTicks[lastCpuTicks.length - 1].val : 0;
 
     function mapX(val) {
         return plotLeft + ((val + streamWindow) / streamWindow) * plotWidth;
@@ -1036,6 +1244,10 @@ function drawMemoryChart() {
             return plotTop + plotHeight - (logVal / logMax) * plotHeight;
         }
         return plotTop + plotHeight - (val / maxY) * plotHeight;
+    }
+
+    function mapCpuY(val) {
+        return plotTop + plotHeight - (val / cpuMax) * plotHeight;
     }
 
     // Grid lines
@@ -1054,6 +1266,21 @@ function drawMemoryChart() {
         memoryCtx.stroke();
         memoryCtx.fillText(memoryYTicks[t].label, plotLeft - 6, ty);
     }
+
+    // CPU reads off the right edge, in ticks spaced like the memory grid, so a linear scale shares its lines.
+    memoryCtx.textAlign = "left";
+    memoryCtx.strokeStyle = CPU_COLOR;
+    memoryCtx.fillStyle = CPU_COLOR;
+    for (var u = 0; u < lastCpuTicks.length; u++) {
+        var uy = mapCpuY(lastCpuTicks[u].val);
+        memoryCtx.beginPath();
+        memoryCtx.moveTo(plotLeft + plotWidth, uy);
+        memoryCtx.lineTo(plotLeft + plotWidth + 4, uy);
+        memoryCtx.stroke();
+        memoryCtx.fillText(lastCpuTicks[u].label, plotLeft + plotWidth + 7, uy);
+    }
+    memoryCtx.strokeStyle = "#e2e8f0";
+    memoryCtx.fillStyle = "#64748b";
 
     // X axis ticks
     memoryCtx.textAlign = "center";
@@ -1090,6 +1317,22 @@ function drawMemoryChart() {
     memoryCtx.lineWidth = 2;
     memoryCtx.stroke();
 
+    // CPU against the right axis: the shape says whether held memory is computing.
+    if (lastCpuPoints.length > 1 && cpuMax > 0) {
+        memoryCtx.beginPath();
+        for (var k = 0; k < lastCpuPoints.length; k++) {
+            var cx = mapX(lastCpuPoints[k].x);
+            var cy = mapCpuY(lastCpuPoints[k].y);
+            if (k === 0) memoryCtx.moveTo(cx, cy);
+            else memoryCtx.lineTo(cx, cy);
+        }
+        memoryCtx.strokeStyle = CPU_COLOR;
+        memoryCtx.lineWidth = 1.5;
+        memoryCtx.setLineDash([4, 3]);
+        memoryCtx.stroke();
+        memoryCtx.setLineDash([]);
+    }
+
     memoryCtx.lineWidth = 1;
 }
 
@@ -1105,19 +1348,11 @@ memoryCanvas.addEventListener("mousemove", function(evt) {
     // convert mx to time
     var t = ((mx - MEM_PADDING.left) / plotWidth) * streamWindow - streamWindow;
 
-    // find closest point
-    var closest = null;
-    var minDist = Infinity;
-    for (var i = 0; i < memoryPoints.length; i++) {
-        var d = Math.abs(memoryPoints[i].x - t);
-        if (d < minDist) {
-            minDist = d;
-            closest = memoryPoints[i];
-        }
-    }
-
-    if (closest && minDist < streamWindow * 0.05) {
-        tooltip.textContent = formatBytes(closest.y) + " at " + closest.x.toFixed(1) + "s";
+    var closest = closestPoint(memoryPoints, t);
+    if (closest && Math.abs(closest.x - t) < streamWindow * 0.05) {
+        var cpu = closestPoint(lastCpuPoints, closest.x);
+        var reading = formatBytes(closest.y) + (cpu ? ", CPU " + cpu.y + "%" : "");
+        tooltip.textContent = reading + " at " + closest.x.toFixed(1) + "s";
         tooltip.style.left = (evt.clientX + 10) + "px";
         tooltip.style.top = (evt.clientY - 30) + "px";
         tooltip.classList.add("visible");
@@ -1130,110 +1365,204 @@ memoryCanvas.addEventListener("mouseleave", function() {
     tooltip.classList.remove("visible");
 });
 
-// -- Worker Processors --
-var processorsCollapsed = {};  // track collapsed state by worker name
-var managerCollapsed = {};    // track collapsed state by manager id
-
-function updateProcessors(processors) {
-    lastProcessorsData = processors;
-    if (activeTab === "processors") renderProcessors();
+// The point of `points` nearest time `x`, or null when there are none.
+function closestPoint(points, x) {
+    var closest = null;
+    for (var i = 0; i < points.length; i++) {
+        if (closest === null || Math.abs(points[i].x - x) < Math.abs(closest.x - x)) closest = points[i];
+    }
+    return closest;
 }
 
-function renderProcessors() {
-    // Each group carries fleet-wide summary numbers, but only this page's worker detail.
-    var groups = lastProcessorsData || [];
+// -- Workers --
+var managerCollapsed = {};  // manager id -> folded by this browser
+// A rebuild between a press and its release swallows the click, so the rows hold still briefly after a press.
+var CLICK_HOLD_MS = 600;
+var workersPressedAt = 0;
 
-    processorsContainer.innerHTML = "";
-    if (processorsTotal === 0) {
-        processorsContainer.innerHTML = '<div class="card"><p style="color:#64748b">No workers connected</p></div>';
-        renderPagers("processors-pager", 0, 1, 0, function() {});
-        return;
+workerDetailsContainer.addEventListener("pointerdown", function() { workersPressedAt = Date.now(); });
+
+function updateWorkerDetails(workerDetails) {
+    lastWorkerDetails = workerDetails;
+    if (activeTab === "workers") renderWorkerDetails();
+}
+
+function renderWorkerDetails() {
+    if (Date.now() - workersPressedAt < CLICK_HOLD_MS) return;  // the next update draws it
+
+    // Each group carries fleet-wide summary numbers, but only this page's workers.
+    var groups = lastWorkerDetails || [];
+    workerDetailsContainer.innerHTML = "";
+    workerDetailsCount.textContent = workerDetailsTotal ? "(" + workerDetailsTotal + ")" : "";
+    if (workerDetailsTotal === 0) {
+        workerDetailsContainer.appendChild(makeElement("div", "worker-empty worker-detail", "No workers connected"));
     }
-
     for (var g = 0; g < groups.length; g++) {
-        var group = groups[g];
-        if (!group.workers || group.workers.length === 0) continue;
-        var section = buildManagerSection(group);
-        processorsContainer.appendChild(section);
-        for (var i = 0; i < group.workers.length; i++) {
-            section.appendChild(buildWorkerProcessorDetail(group.workers[i]));
+        if (groups[g].workers && groups[g].workers.length > 0) {
+            workerDetailsContainer.appendChild(buildWorkerGroup(groups[g]));
         }
     }
-    renderPagers("processors-pager", processorsPage, processorsPages, processorsTotal, function(p) {
-        processorsPage = p;
-        sendView({ processors_page: p });
+    renderPagers("workerdetails-pager", workerDetailsPage, workerDetailsPages, workerDetailsTotal, function(p) {
+        workerDetailsPage = p;
+        sendView({ worker_details_page: p });
     });
 }
 
-function buildManagerSection(group) {
-    var managerSection = document.createElement("details");
-    managerSection.className = "manager-group card";
-    managerSection.open = !managerCollapsed[group.manager_id];
+// A manager's workers under a row that sums the same four columns over every worker the manager has.
+function buildWorkerGroup(group) {
+    var details = makeElement("details", "worker-group");
+    details.open = !managerCollapsed[group.manager_id];
+    details.addEventListener("toggle", function() { managerCollapsed[group.manager_id] = !details.open; });
 
-    var managerSummary = document.createElement("summary");
-    managerSummary.className = "manager-header";
-    managerSummary.innerHTML =
-        '<span class="manager-title">Manager: ' + escapeHTML(group.manager_id) + '</span>' +
-        '<span class="manager-stats">' +
-            '<span class="manager-stat"><b>Workers:</b> ' + group.worker_count + '</span>' +
-            '<span class="manager-stat"><b>Processors:</b> ' + group.active_processors + ' active</span>' +
-            '<span class="manager-stat"><b>Total PSS:</b> ' + group.total_rss + ' MB</span>' +
-            '<span class="manager-stat"><b>Total CPU:</b> ' + group.total_cpu + '%</span>' +
-        '</span>';
-    managerSection.appendChild(managerSummary);
-    (function(mid, el) {
-        el.addEventListener("toggle", function() { managerCollapsed[mid] = !el.open; });
-    })(group.manager_id, managerSection);
-    return managerSection;
-}
+    var name = group.manager_id === "\u2014" ? "No manager" : group.manager_id;
+    var count = group.worker_count + (group.worker_count === 1 ? " worker" : " workers");
+    var manager = makeElement("div");
+    manager.appendChild(makeElement("span", "worker-group-name", name));
+    manager.appendChild(document.createTextNode(" " + count));
 
-function buildWorkerProcessorDetail(wp) {
-    var details = document.createElement("details");
-    details.className = "card processor-group";
-    details.open = !processorsCollapsed[wp.name];
-
-    var summary = document.createElement("summary");
-    summary.textContent = "Worker " + wp.name;
-    summary.title = wp.full_name || wp.name;
+    var busy = group.active_processors + " of " + group.total_processors + " processors busy";
+    var summary = makeElement("summary", "worker-row worker-group-head");
+    summary.appendChild(manager);
+    summary.appendChild(makeElement("div", "", group.total_rss + " MB \u00b7 " + group.total_cpu + "% CPU"));
+    summary.appendChild(makeElement("div", "", busy, "Processors holding a task, of every one these workers run"));
+    summary.appendChild(makeElement("div", "", group.total_queued + " queued", "As the workers themselves report it"));
     details.appendChild(summary);
-    (function(name, el) {
-        el.addEventListener("toggle", function() { processorsCollapsed[name] = !el.open; });
-    })(wp.name, details);
 
-    var table = document.createElement("table");
-    table.className = "data-table";
-    var thead = document.createElement("thead");
-    var headerRow = document.createElement("tr");
-    // memory columns are PSS on Linux, RSS on macOS/Windows (see get_process_memory)
-    var headers = ["PID", "CPU %", "PSS (MB)", "Max PSS (MB)", "Initialized", "Has Task", "Suspended"];
-    for (var h = 0; h < headers.length; h++) {
-        var th = document.createElement("th");
-        th.textContent = headers[h];
-        headerRow.appendChild(th);
-    }
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    var tbody = document.createElement("tbody");
-    for (var p = 0; p < wp.processors.length; p++) {
-        var proc = wp.processors[p];
-        var tr = document.createElement("tr");
-        var tdPid = document.createElement("td"); tdPid.textContent = proc.pid; tr.appendChild(tdPid);
-        var tdCpu = document.createElement("td"); tdCpu.innerHTML = makeGaugeHTML(proc.cpu, 100, "%"); tr.appendChild(tdCpu);
-        var tdRss = document.createElement("td"); tdRss.innerHTML = makeGaugeHTML(proc.rss, proc.rss_max_gauge, ""); tr.appendChild(tdRss);
-        var tdMax = document.createElement("td"); tdMax.innerHTML = makeGaugeHTML(proc.max_rss, proc.rss_max_gauge, ""); tr.appendChild(tdMax);
-        var tdInit = document.createElement("td"); tdInit.innerHTML = boolIndicator(proc.initialized); tr.appendChild(tdInit);
-        var tdTask = document.createElement("td"); tdTask.innerHTML = boolIndicator(proc.has_task); tr.appendChild(tdTask);
-        var tdSusp = document.createElement("td"); tdSusp.innerHTML = boolIndicator(proc.suspended); tr.appendChild(tdSusp);
-        tbody.appendChild(tr);
-    }
-    table.appendChild(tbody);
-    details.appendChild(table);
+    for (var i = 0; i < group.workers.length; i++) details.appendChild(buildWorkerRow(group.workers[i]));
     return details;
 }
 
-function boolIndicator(val) {
-    return '<span class="bool-indicator ' + (val ? "bool-true" : "bool-false") + '"></span>';
+function buildWorkerRow(worker) {
+    var row = makeElement("div", "worker-row");
+    row.appendChild(buildWorkerIdentity(worker));
+    row.appendChild(buildWorkerResources(worker));
+    row.appendChild(buildWorkerRunning(worker));
+    row.appendChild(buildWorkerQueue(worker));
+    return row;
+}
+
+function buildWorkerIdentity(worker) {
+    var cell = makeElement("div");
+    cell.appendChild(makeElement("div", "worker-name", worker.name, worker.full_name || worker.name));
+    cell.appendChild(makeElement("div", "worker-detail", worker.host, worker.host));
+    cell.appendChild(makeElement("div", "worker-detail", "seen " + worker.last_seen + " ago", "Its last heartbeat"));
+    if (worker.capabilities && worker.capabilities !== "<no capabilities>") {
+        cell.appendChild(makeElement("div", "worker-detail", worker.capabilities, "Capabilities"));
+    }
+    return cell;
+}
+
+function buildWorkerResources(worker) {
+    var limit = worker.mem_limit ? "Of the " + worker.mem_limit + " MB limit this worker runs under" : "";
+    var cell = makeElement("div");
+    cell.appendChild(buildMeter("Mem", worker.mem_used_pct, limit));
+    cell.appendChild(buildMeter("CPU", worker.cpu, "Where one core is 100%"));
+    var pss = makeElement("div", "meter", null, "PSS on Linux, RSS on macOS and Windows");
+    pss.appendChild(makeElement("span", "meter-label", "PSS"));
+    pss.appendChild(makeElement("span", "", worker.rss + " MB"));
+    cell.appendChild(pss);
+    return cell;
+}
+
+// A labelled percentage gauge.
+function buildMeter(label, percent, title) {
+    var meter = makeElement("div", "meter", null, title);
+    meter.appendChild(makeElement("span", "meter-label", label));
+    meter.insertAdjacentHTML("beforeend", makeGaugeHTML(percent, 100, "%"));
+    return meter;
+}
+
+// One entry per processor: the task it holds and for how long, then the process itself.
+function buildWorkerRunning(worker) {
+    var cell = makeElement("div");
+    for (var p = 0; p < worker.processors.length; p++) cell.appendChild(buildProcessor(worker.processors[p]));
+    return cell;
+}
+
+function buildProcessor(proc) {
+    var task = makeElement("div", "processor-task");
+    if (proc.task_id) {
+        if (proc.function) task.appendChild(makeElement("span", "processor-function", proc.function, proc.function));
+        task.appendChild(makeTaskLink(proc.task_id, "span"));
+        task.appendChild(makeElement("span", "worker-detail", proc.task_age, "How long it has held the task"));
+    } else {
+        task.appendChild(makeElement("span", "worker-detail", "idle"));
+    }
+    if (proc.suspended) {
+        task.appendChild(makeElement("span", "tag tag-suspended", "suspended", "Holding a task without running it"));
+    }
+    if (!proc.initialized) {
+        task.appendChild(makeElement("span", "tag", "starting", "Has not loaded the client's environment yet"));
+    }
+
+    var memory = proc.rss + " MB, peak " + proc.peak_rss + " MB";
+    var usage = ["pid " + proc.pid, proc.cpu + "% CPU", memory].join(" \u00b7 ");
+    var processor = makeElement("div", "processor");
+    processor.appendChild(task);
+    processor.appendChild(makeElement("div", "worker-detail", usage, "The peak is the highest this monitor has seen"));
+    return processor;
+}
+
+// What this worker holds and has not started, next in line first.
+function buildWorkerQueue(worker) {
+    var depth = Math.max(worker.queue_depth, worker.queue_named);
+    var head = makeElement("div", "queue-head");
+    head.appendChild(makeElement("span", depth > 0 ? "queue-count" : "worker-detail", depth + " queued"));
+    head.appendChild(makeElement("span", "worker-detail", " \u00b7 " + worker.free + " free", "Queue slots left"));
+    head.appendChild(makeElement("span", "worker-detail", " \u00b7 " + worker.sent + " sent", "Not yet answered"));
+
+    var cell = makeElement("div");
+    cell.appendChild(head);
+    if (worker.queue.length === 0) {
+        if (depth > 0) cell.appendChild(makeElement("div", "worker-detail", "queued before this monitor started"));
+        return cell;
+    }
+
+    var chips = makeElement("div", "queue-chips");
+    for (var i = 0; i < worker.queue.length; i++) chips.appendChild(buildQueueChip(worker.queue[i]));
+    if (depth > worker.queue.length) {
+        chips.appendChild(makeElement("span", "chip chip-more", "+" + (depth - worker.queue.length), "Further back"));
+    }
+    cell.appendChild(chips);
+    return cell;
+}
+
+function buildQueueChip(task) {
+    var label = task.function || task.task_id.slice(0, 12);
+    var chip = makeElement("span", "chip task-link", label, task.task_id + " - click for this task's trail");
+    chip.addEventListener("click", function() { focusTask(task.task_id); });
+    return chip;
+}
+
+// A task id that opens that task's trail in the Task Log.
+function makeTaskLink(taskId, tag) {
+    var element = document.createElement(tag || "td");
+    var link = document.createElement("span");
+    link.className = "task-id task-link";
+    link.textContent = taskId.slice(0, 12);
+    link.title = taskId + " - click for this task's trail";
+    link.addEventListener("click", function(evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        focusTask(taskId);
+    });
+    element.appendChild(link);
+    return element;
+}
+
+// Show one task's trail: switch to the Task Log and filter it to that task.
+function focusTask(taskId) {
+    selectTab("tasklog");
+    showOnlyTask(taskId);
+}
+
+// An element with the class, text and tooltip most cells set.
+function makeElement(tag, className, text, title) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = text;
+    if (title) node.title = title;
+    return node;
 }
 
 // -- Utilities --
@@ -1280,5 +1609,7 @@ window.addEventListener("resize", function() {
 });
 
 // -- Start --
+applySettings(saved.settings);
+selectTab($("panel-" + saved.tab) ? saved.tab : "live");
 connect();
 requestAnimationFrame(renderLoop);

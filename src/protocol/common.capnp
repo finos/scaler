@@ -41,6 +41,7 @@ struct ObjectMetadata {
     objectIds @0 :List(Data);
     objectTypes @1 :List(ObjectContentType);
     objectNames @2 :List(Data);
+    objectSizes @3 :List(UInt64);  # payload bytes per object, so the monitor can show what a task moves
 
     enum ObjectContentType {
         serializer @0;

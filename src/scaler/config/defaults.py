@@ -13,6 +13,9 @@ CLEANUP_INTERVAL_SECONDS = 1
 # should raise it via -sri.
 STATUS_REPORT_INTERVAL_SECONDS = 1
 
+# biggest objects each status report carries, at about 240 bytes each, out of a store with no bound
+OBJECT_REPORT_LIMIT = 500
+
 # number of seconds for profiling
 PROFILING_INTERVAL_SECONDS = 1
 
@@ -110,8 +113,8 @@ DEFAULT_LOGGING_PATHS = ("/dev/stdout",)
 # Pushing faster mostly redraws the same picture: one tick is about a pixel over the stream's 5 minute window.
 DEFAULT_GUI_BROADCAST_INTERVAL_SECONDS = 0.5
 
-# maximum number of completed tasks the web GUI retains and shows in the task log
-DEFAULT_GUI_TASK_LOG_MAX_SIZE = 500
+# tasks and state changes the web GUI retains; paging is server-side, so this bounds its own memory
+DEFAULT_GUI_TASK_LOG_MAX_SIZE = 50_000
 
 # =======================
 # SCALER NETWORK BACKEND SPECIFIC OPTIONS

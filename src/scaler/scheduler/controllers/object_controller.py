@@ -1,17 +1,23 @@
+import asyncio
 import dataclasses
+import heapq
 import logging
 from asyncio import Queue
-from typing import Optional, Set
+from typing import Dict, List, Optional, Set
 
-from scaler.io.mixins import AsyncBinder, AsyncObjectStorageConnector, AsyncPublisher
+from scaler.io.mixins import AsyncBinder, AsyncObjectStorageConnector, AsyncPublisher, ObjectStorageTotals
 from scaler.protocol.capnp import ObjectInstruction, ObjectManagerStatus, ObjectMetadata
 from scaler.scheduler.controllers.config_controller import VanillaConfigController
-from scaler.scheduler.controllers.mixins import ClientController, ObjectController, WorkerController
+from scaler.scheduler.controllers.mixins import ClientController, ObjectController, ObjectDetail, WorkerController
 from scaler.scheduler.object_usage.object_tracker import ObjectTracker, ObjectUsage
+from scaler.utility.exceptions import ObjectStorageException
 from scaler.utility.identifiers import ClientID, ObjectID
 from scaler.utility.mixins import Looper, Reporter
 
 logger = logging.getLogger(__name__)
+
+# How long to wait for the storage server to answer what it holds; unbounded would wedge this routine.
+STORAGE_TOTALS_TIMEOUT_SECONDS = 5.0
 
 
 @dataclasses.dataclass
@@ -38,9 +44,14 @@ class VanillaObjectController(ObjectController, Looper, Reporter):
         self._binder: Optional[AsyncBinder] = None
         self._binder_monitor: Optional[AsyncPublisher] = None
         self._connector_storage: Optional[AsyncObjectStorageConnector] = None
+        # keyed by raw id bytes: ids arrive off the wire, and an ObjectID would validate a length nobody needs
+        self._object_sizes: Dict[bytes, int] = {}
 
         self._client_manager: Optional[ClientController] = None
         self._worker_manager: Optional[WorkerController] = None
+
+        # The storage server's own view, refreshed by its routine: a status frame reports the last answer.
+        self._storage_totals = ObjectStorageTotals()
 
     def register(
         self,
@@ -95,6 +106,41 @@ class VanillaObjectController(ObjectController, Looper, Reporter):
     async def routine(self):
         await self.__routine_send_objects_deletions()
 
+    async def routine_storage_totals(self) -> None:
+        """Ask the storage server what it holds. Its own loop is the only place those numbers exist."""
+        try:
+            self._storage_totals = await asyncio.wait_for(
+                self._connector_storage.info_get_total(), timeout=STORAGE_TOTALS_TIMEOUT_SECONDS
+            )
+        except (ObjectStorageException, asyncio.TimeoutError):
+            # A storage server that is gone or slow must not stop the scheduler reporting everything else.
+            self._storage_totals = ObjectStorageTotals()
+
+    def get_object_size(self, object_id: bytes) -> int:
+        """Payload bytes for an object, 0 if it was created by a client that does not report sizes."""
+        return self._object_sizes.get(bytes(object_id), 0)
+
+    def object_count(self) -> int:
+        return self._object_tracker.object_count()
+
+    def get_largest_objects(self, limit: int) -> List[ObjectDetail]:
+        """The `limit` biggest tracked objects, biggest first, which is what a full store is made of.
+
+        A heap, because this runs on the scheduler's event loop.
+        Sorting a few hundred thousand objects every status frame costs seconds.
+        """
+        largest = heapq.nlargest(limit, self._object_tracker.items(), key=lambda item: self.get_object_size(item[0]))
+        return [
+            ObjectDetail(
+                object_id=object_id,
+                name=creation.object_name,
+                content_type=creation.object_type,
+                size=self.get_object_size(object_id),
+                creator=creation.object_creator,
+            )
+            for object_id, creation in largest
+        ]
+
     def has_object(self, object_id: ObjectID) -> bool:
         return self._object_tracker.has_object(object_id)
 
@@ -105,7 +151,15 @@ class VanillaObjectController(ObjectController, Looper, Reporter):
         return self._object_tracker.get_object(object_id).object_name
 
     def get_status(self) -> ObjectManagerStatus:
-        return ObjectManagerStatus(numberOfObjects=self._object_tracker.object_count())
+        return ObjectManagerStatus(
+            numberOfObjects=self._object_tracker.object_count(),
+            storageObjectCount=self._storage_totals.object_count,
+            storageUniqueCount=self._storage_totals.unique_object_count,
+            storageTotalBytes=self._storage_totals.total_bytes,
+            storagePendingRequests=self._storage_totals.pending_request_count,
+            storagePendingObjects=self._storage_totals.pending_object_count,
+            storageOldestPendingS=self._storage_totals.oldest_pending_seconds,
+        )
 
     async def __routine_send_objects_deletions(self):
         deleted_object_ids = [await self._queue_deleted_object_ids.get()]
@@ -130,18 +184,26 @@ class VanillaObjectController(ObjectController, Looper, Reporter):
 
         for object_id in deleted_object_ids:
             await self._connector_storage.delete_object(object_id)
+            self.__forget_object_size(object_id)
 
     def __on_object_create(self, source: bytes, instruction: ObjectInstruction):
         if not self._client_manager.has_client_id(instruction.objectUser):
             logger.error(f"received object creation from {source!r} for unknown client {instruction.objectUser!r}")
             return
 
-        for object_id, object_type, object_name in zip(
-            instruction.objectMetadata.objectIds,
-            instruction.objectMetadata.objectTypes,
-            instruction.objectMetadata.objectNames,
+        # objectSizes is newer than the other three, so an older client omits it: pad rather than zip short
+        sizes = list(instruction.objectMetadata.objectSizes)
+        object_ids = list(instruction.objectMetadata.objectIds)
+        sizes += [0] * (len(object_ids) - len(sizes))
+
+        for object_id, object_type, object_name, object_size in zip(
+            object_ids, instruction.objectMetadata.objectTypes, instruction.objectMetadata.objectNames, sizes
         ):
+            self._object_sizes[bytes(object_id)] = object_size
             self.on_add_object(instruction.objectUser, object_id, object_type, object_name)
+
+    def __forget_object_size(self, object_id: ObjectID) -> None:
+        self._object_sizes.pop(bytes(object_id), None)
 
     def __finished_object_storage(self, creation: _ObjectCreation):
         logger.debug(f"del object cache object_name={creation.object_name!r}, object_id={creation.object_id!r}")

@@ -85,7 +85,8 @@ class ObjectBuffer:
             return
 
         object_instructions_to_send = [
-            (obj_cache.object_id, obj_cache.object_type, obj_cache.object_name) for obj_cache in self._pending_objects
+            (obj_cache.object_id, obj_cache.object_type, obj_cache.object_name, len(obj_cache.object_payload))
+            for obj_cache in self._pending_objects
         ]
 
         self._connector_agent.send(
@@ -93,9 +94,10 @@ class ObjectBuffer:
                 instructionType=ObjectInstruction.ObjectInstructionType.create,
                 objectUser=self._identity,
                 objectMetadata=ObjectMetadata(
-                    objectIds=[object_id for object_id, _, _ in object_instructions_to_send],
-                    objectTypes=[object_type for _, object_type, _ in object_instructions_to_send],
-                    objectNames=[object_name for _, _, object_name in object_instructions_to_send],
+                    objectIds=[object_id for object_id, _, _, _ in object_instructions_to_send],
+                    objectTypes=[object_type for _, object_type, _, _ in object_instructions_to_send],
+                    objectNames=[object_name for _, _, object_name, _ in object_instructions_to_send],
+                    objectSizes=[size for _, _, _, size in object_instructions_to_send],
                 ),
             )
         )

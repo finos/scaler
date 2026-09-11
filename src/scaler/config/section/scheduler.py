@@ -61,6 +61,14 @@ class SchedulerConfig(ConfigClass):
             "running thousands of workers or tasks.",
         ),
     )
+    object_report_limit: int = dataclasses.field(
+        default=defaults.OBJECT_REPORT_LIMIT,
+        metadata=dict(
+            short="-orl",
+            help="how many of the biggest objects each status report carries, which is how many the web GUI "
+            "can page through. Each one costs the report about 240 bytes.",
+        ),
+    )
     protected: bool = dataclasses.field(
         default=False,
         metadata=dict(

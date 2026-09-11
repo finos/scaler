@@ -21,7 +21,7 @@ runs:
       shell: bash
       run: |
         uv pip install --system flake8 pyproject-flake8 mypy
-        uv pip install --system -r pyproject.toml --extra graphblas --extra gui
+        uv pip install --system -r pyproject.toml --extra graphblas
 
     - name: Check import sorting with isort
       shell: bash

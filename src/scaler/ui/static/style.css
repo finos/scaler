@@ -183,6 +183,16 @@ th.sortable {
     user-select: none;
 }
 
+/* Marks anything that carries a tooltip, so the explanation is findable without taking up room. */
+th[title], h2[title], h3[title], .metric-label[title], .worker-grid-head > [title] {
+    text-decoration: underline dotted var(--text-muted);
+    text-underline-offset: 3px;
+}
+
+th[title]:not(.sortable), h2[title], h3[title], .metric-label[title], .worker-grid-head > [title] {
+    cursor: help;
+}
+
 th.sortable:hover {
     color: var(--text);
 }
@@ -345,6 +355,28 @@ th.sort-desc::after {
     );
 }
 
+/* A legend beside a chart's title, each swatch drawn the way its series is. */
+.chart-legend {
+    padding: 0;
+    margin: 0;
+}
+
+.line-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 10px;
+}
+
+.line-swatch-memory {
+    background: rgba(59, 130, 246, 0.3);
+    border-top: 2px solid #3b82f6;
+}
+
+.line-swatch-cpu {
+    height: 0;
+    border-top: 2px dashed #d97706;
+}
+
 /* Task Stream */
 .stream-container {
     overflow-y: auto;
@@ -382,98 +414,183 @@ th.sort-desc::after {
     height: 100%;
 }
 
-/* Worker Processors */
-.manager-group {
-    margin-bottom: 24px;
-}
-
-.manager-group > summary.manager-header {
-    cursor: pointer;
-    user-select: none;
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-    flex-wrap: wrap;
-    padding: 8px 0;
-}
-
-.manager-group > summary.manager-header:hover .manager-title {
-    color: var(--accent-hover, #60a5fa);
-}
-
-.manager-title {
-    font-weight: 700;
-    font-size: 16px;
-    color: var(--accent);
-    margin: 0;
-}
-
-.manager-stats {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-
-.manager-stat {
+/* Workers: one row per worker, in the four columns its manager's row sums. */
+.worker-grid {
+    min-width: 960px;
     font-size: 13px;
-    color: var(--text-secondary);
 }
 
-.manager-stat b {
-    color: var(--text);
+.worker-row {
+    display: grid;
+    grid-template-columns: minmax(160px, 0.8fr) minmax(160px, 0.7fr) minmax(300px, 1.5fr) minmax(260px, 1.5fr);
+    gap: 16px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
 }
 
-.manager-group .processor-group {
-    margin-left: 16px;
+.worker-row > div {
+    min-width: 0;
 }
 
-.processor-group {
-    margin-bottom: 16px;
-}
-
-.processor-group summary {
-    cursor: pointer;
+.worker-grid-head {
+    background: var(--bg);
+    border-bottom: 2px solid var(--border);
+    color: var(--text-muted);
     font-weight: 600;
-    font-size: 15px;
-    padding: 8px 0;
+}
+
+.worker-group > summary {
+    list-style: none;
+    cursor: pointer;
     user-select: none;
+    background: var(--row-even);
+    color: var(--text-muted);
 }
 
-.processor-group summary:hover {
+.worker-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.worker-group-name {
     color: var(--accent);
+    font-weight: 700;
 }
 
-.bool-indicator {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
+.worker-group-name::before {
+    content: "\25BE";
+    display: inline-block;
+    width: 1.4em;
+    color: var(--text-muted);
+}
+
+.worker-group:not([open]) .worker-group-name::before {
+    content: "\25B8";
+}
+
+.worker-group > .worker-row:hover {
+    background: var(--row-hover);
+}
+
+.worker-name {
+    font-weight: 600;
+}
+
+.worker-name, .worker-detail, .queue-head {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.worker-detail {
+    color: var(--text-muted);
     font-size: 12px;
 }
 
-.bool-true {
-    background: var(--success);
-    color: white;
+.meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
 }
 
-.bool-true::after {
-    content: "\2713";
+.meter-label {
+    width: 3ch;
+    color: var(--text-muted);
+    font-size: 12px;
 }
 
-.bool-false {
+.meter .gauge {
+    flex: 1;
+    min-width: 0;
+}
+
+.processor + .processor {
+    margin-top: 6px;
+}
+
+.processor-task {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.processor-task > * {
+    flex: none;
+}
+
+.processor-task > .processor-function {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+}
+
+.tag {
+    border-radius: 999px;
+    padding: 0 7px;
+    font-size: 11px;
+    font-weight: 600;
     background: var(--gauge-track);
     color: var(--text-muted);
 }
 
-.bool-false::after {
-    content: "\2013";
+.tag-suspended {
+    background: #fef3c7;
+    color: #92400e;
 }
 
-/* Settings */
-.settings-card {
-    max-width: 400px;
+.queue-count {
+    font-weight: 600;
+    color: #b45309;
+}
+
+.queue-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.chip {
+    max-width: 18ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.chip.task-link {
+    cursor: pointer;
+}
+
+.chip.task-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.chip-more {
+    border-style: dashed;
+    color: var(--text-muted);
+}
+
+.worker-empty {
+    padding: 16px 10px;
+}
+
+/* A host name is as long as the operator's naming scheme; elide it rather than let one column push the
+   rest of the workers table off the screen. The cell keeps the whole name for its tooltip. */
+#workers-table td[data-field="host"] {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .toggle-group {
@@ -486,6 +603,7 @@ th.sort-desc::after {
 
 .toggle-btn {
     flex: 1;
+    white-space: nowrap;
     padding: 6px 14px;
     border: none;
     border-radius: 4px;
@@ -668,4 +786,20 @@ body.fit-page #memory-card .memory-container {
 .pager-info {
     font-size: 12px;
     color: var(--text-muted);
+}
+
+/* Each widget carries the controls that affect it. */
+.inline-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Rows in the linear task log filter to one task when clicked. */
+tr.clickable {
+    cursor: pointer;
+}
+
+tr.clickable:hover {
+    background: var(--row-hover, rgba(255, 255, 255, 0.06));
 }

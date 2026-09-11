@@ -1,6 +1,7 @@
+import dataclasses
 import logging
 import time
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, Optional, Set
 
 from scaler.io.mixins import AsyncBinder, AsyncPublisher
 from scaler.protocol.capnp import (
@@ -21,6 +22,15 @@ from scaler.utility.one_to_many_dict import OneToManyDict
 
 logger = logging.getLogger(__name__)
 
+UINT16_MAX = 2**16 - 1
+
+
+@dataclasses.dataclass
+class _ConnectedClient:
+    connected_at: float
+    last_seen_at: float
+    heartbeat: ClientHeartbeat
+
 
 class VanillaClientController(ClientController, Looper, Reporter):
     def __init__(self, config_controller: VanillaConfigController):
@@ -34,7 +44,7 @@ class VanillaClientController(ClientController, Looper, Reporter):
         self._task_controller: Optional[TaskController] = None
         self._worker_controller: Optional[WorkerController] = None
 
-        self._client_last_seen: Dict[ClientID, Tuple[float, ClientHeartbeat]] = dict()
+        self._connected_clients: Dict[ClientID, _ConnectedClient] = dict()
 
     def register(
         self,
@@ -54,7 +64,7 @@ class VanillaClientController(ClientController, Looper, Reporter):
         return self._client_to_task_ids.get_values(client_id)
 
     def has_client_id(self, client_id: ClientID) -> bool:
-        return client_id in self._client_last_seen
+        return client_id in self._connected_clients
 
     def get_client_id(self, task_id: TaskID) -> Optional[ClientID]:
         if not self._client_to_task_ids.has_value(task_id):
@@ -90,20 +100,22 @@ class VanillaClientController(ClientController, Looper, Reporter):
             ),
             detached=True,
         )
-        if client_id not in self._client_last_seen:
+        now = time.time()
+        connected = self._connected_clients.get(client_id)
+        if connected is None:
             logger.info(f"{client_id!r} connected")
+            self._connected_clients[client_id] = _ConnectedClient(connected_at=now, last_seen_at=now, heartbeat=info)
+            return
 
-        self._client_last_seen[client_id] = (time.time(), info)
+        connected.last_seen_at = now
+        connected.heartbeat = info
 
     def notice_client_activity(self, client_id: ClientID):
-        # Any inbound message from a tracked client counts as liveness for
-        # the heartbeat-based timeout. We deliberately don't register new
-        # clients here -- a client must complete the proper ClientHeartbeat
-        # handshake before it shows up in ``_client_last_seen``.
-        existing = self._client_last_seen.get(client_id)
-        if existing is None:
+        # Any message from a tracked client counts as liveness; only a heartbeat registers a new one.
+        connected = self._connected_clients.get(client_id)
+        if connected is None:
             return
-        self._client_last_seen[client_id] = (time.time(), existing[1])
+        connected.last_seen_at = time.time()
 
     async def on_client_disconnect(self, client_id: ClientID, request: ClientDisconnect):
         if request.disconnectType == ClientDisconnect.DisconnectType.disconnect:
@@ -130,26 +142,32 @@ class VanillaClientController(ClientController, Looper, Reporter):
         await self.__routine_cleanup_clients()
 
     def get_status(self) -> ClientManagerStatus:
+        now = time.time()
         return ClientManagerStatus(
-            clientToNumOfTask=[
-                ClientManagerStatus.Pair(
-                    client=client,
+            clients=[
+                ClientManagerStatus.ClientStatus(
+                    clientId=client_id,
                     numTask=(
-                        len(self._client_to_task_ids.get_values(client))
-                        if self._client_to_task_ids.has_key(client)
+                        len(self._client_to_task_ids.get_values(client_id))
+                        if self._client_to_task_ids.has_key(client_id)
                         else 0
                     ),
+                    resource=connected.heartbeat.resource,
+                    latencyUS=connected.heartbeat.latencyUS,
+                    lastSeenS=min(int(now - connected.last_seen_at), UINT16_MAX),
+                    connectedS=int(now - connected.connected_at),
+                    hostname=connected.heartbeat.hostname,
                 )
-                for client in self._client_last_seen.keys()
+                for client_id, connected in self._connected_clients.items()
             ]
         )
 
     async def __routine_cleanup_clients(self):
         now = time.time()
         dead_clients = {
-            client
-            for client, (last_seen, info) in self._client_last_seen.items()
-            if now - last_seen > self._config_controller.get_config("client_timeout_seconds")
+            client_id
+            for client_id, connected in self._connected_clients.items()
+            if now - connected.last_seen_at > self._config_controller.get_config("client_timeout_seconds")
         }
 
         for client in dead_clients:
@@ -157,8 +175,7 @@ class VanillaClientController(ClientController, Looper, Reporter):
 
     async def __on_client_disconnect(self, client_id: ClientID):
         logger.info(f"{client_id!r} disconnected")
-        if client_id in self._client_last_seen:
-            self._client_last_seen.pop(client_id)
+        self._connected_clients.pop(client_id, None)
 
         await self.__cancel_client_all_tasks(client_id)
         self._object_controller.clean_client(client_id)

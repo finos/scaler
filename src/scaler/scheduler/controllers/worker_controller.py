@@ -150,9 +150,14 @@ class VanillaWorkerController(WorkerController, Looper, Reporter):
                     hasTask=p.hasTask,
                     suspended=p.suspended,
                     resource=Resource(cpu=p.resource.cpu, rss=p.resource.rss),
+                    currentTaskId=bytes(p.currentTaskId),
+                    taskAgeSeconds=p.taskAgeSeconds,
                 )
                 for p in info.processors
             ],
+            hostname=info.hostname,
+            netSentBytes=info.netSentBytes,
+            netRecvBytes=info.netRecvBytes,
         )
 
     def has_available_worker(self) -> bool:

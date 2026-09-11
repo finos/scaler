@@ -16,7 +16,7 @@ policy_engine_type = "simple"
 policy_content = "allocate=even_load; scaling=no"
 logging_level = "INFO"
 
-# Uncomment to enable the web GUI (requires: pip install 'opengris-scaler[gui]')
+# Uncomment to enable the web GUI
 # [gui]
 # monitor_address = "tcp://127.0.0.1:2347"
 # gui_address = "127.0.0.1:50001"

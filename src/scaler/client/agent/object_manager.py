@@ -66,24 +66,24 @@ class ClientObjectManager(ObjectManager):
             serializer_index = instruction.objectMetadata.objectTypes.index(ObjectMetadata.ObjectContentType.serializer)
             self._sent_serializer_id = ObjectID(instruction.objectMetadata.objectIds[serializer_index])
 
+        # Read each Cap'n Proto list once and carry every field: a dropped one is an object nobody describes.
+        object_sizes = list(instruction.objectMetadata.objectSizes)
+        object_ids = list(instruction.objectMetadata.objectIds)
+        object_sizes += [0] * (len(object_ids) - len(object_sizes))
+
+        kept = [
+            (object_id, object_type, object_name, object_size)
+            for object_id, object_type, object_name, object_size in zip(
+                object_ids, instruction.objectMetadata.objectTypes, instruction.objectMetadata.objectNames, object_sizes
+            )
+            if ObjectID(object_id) in new_object_ids
+        ]
+
         new_object_content = ObjectMetadata(
-            objectIds=[
-                object_id for object_id in instruction.objectMetadata.objectIds if ObjectID(object_id) in new_object_ids
-            ],
-            objectTypes=[
-                object_type
-                for object_id, object_type in zip(
-                    instruction.objectMetadata.objectIds, instruction.objectMetadata.objectTypes
-                )
-                if ObjectID(object_id) in new_object_ids
-            ],
-            objectNames=[
-                object_name
-                for object_id, object_name in zip(
-                    instruction.objectMetadata.objectIds, instruction.objectMetadata.objectNames
-                )
-                if ObjectID(object_id) in new_object_ids
-            ],
+            objectIds=[object_id for object_id, _, _, _ in kept],
+            objectTypes=[object_type for _, object_type, _, _ in kept],
+            objectNames=[object_name for _, _, object_name, _ in kept],
+            objectSizes=[object_size for _, _, _, object_size in kept],
         )
 
         self._sent_object_ids.update(ObjectID(object_id) for object_id in new_object_content.objectIds)

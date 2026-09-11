@@ -1,5 +1,5 @@
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import psutil
 
@@ -10,8 +10,24 @@ from scaler.protocol.capnp import ProcessorStatus, Resource, WorkerHeartbeat, Wo
 from scaler.protocol.helpers import dict_to_capabilities
 from scaler.utility.memory import get_memory_limit_and_available, get_process_memory
 from scaler.utility.mixins import Looper
+from scaler.utility.network_util import get_hostname
 from scaler.worker.agent.mixins import HeartbeatManager, ProcessorManager, TaskManager, TimeoutManager
 from scaler.worker.agent.processor_holder import ProcessorHolder
+
+
+def _host_network_counters() -> Tuple[int, int]:
+    """Host-wide bytes sent and received, 0 where the host has no counters to read.
+
+    Every worker on a host reports the same pair, so the monitor reads it once per hostname, never summed.
+    A missing counter is not a reason to stop a heartbeat the scheduler needs.
+    """
+    try:
+        counters = psutil.net_io_counters()
+    except (RuntimeError, OSError):
+        return 0, 0
+    if counters is None:
+        return 0, 0
+    return int(counters.bytes_sent), int(counters.bytes_recv)
 
 
 class VanillaHeartbeatManager(Looper, HeartbeatManager):
@@ -89,6 +105,7 @@ class VanillaHeartbeatManager(Looper, HeartbeatManager):
         num_suspended_processors = self._processor_manager.num_suspended_processors()
 
         mem_limit, mem_available = get_memory_limit_and_available()
+        net_sent, net_recv = _host_network_counters()
 
         queued_tasks = self._worker_task_manager.get_queued_size() - num_suspended_processors
         assert queued_tasks >= 0, f"negative queued task count, {num_suspended_processors=}"
@@ -108,6 +125,9 @@ class VanillaHeartbeatManager(Looper, HeartbeatManager):
                 processors=[self.__get_processor_status_from_holder(processor) for processor in processors],
                 capabilities=dict_to_capabilities(self._capabilities),
                 workerManagerID=self._worker_manager_id,
+                hostname=get_hostname(),
+                netSentBytes=net_sent,
+                netRecvBytes=net_recv,
             ),
             detached=True,
         )
@@ -126,10 +146,14 @@ class VanillaHeartbeatManager(Looper, HeartbeatManager):
             # Assumes dead/missing processes do not use any resources.
             resource = Resource(cpu=0, rss=0)
 
+        task = processor.task()
+
         return ProcessorStatus(
             pid=processor.pid(),
             initialized=processor.initialized(),
-            hasTask=processor.task() is not None,
+            hasTask=task is not None,
             suspended=processor.suspended(),
             resource=resource,
+            currentTaskId=bytes(task.taskId) if task is not None else b"",
+            taskAgeSeconds=processor.task_age_seconds(),
         )

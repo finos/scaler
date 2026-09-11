@@ -13,6 +13,10 @@ runs:
       shell: bash
       run: uv pip install --system scapy==2.*
 
+    - name: Install websockets for the YMQ WebSocket interop tests
+      shell: bash
+      run: uv pip install --system "websockets>=12.0"
+
     - name: Install pydivert and pywin32 for MITM tests (Windows)
       if: inputs.os == 'Windows'
       shell: bash

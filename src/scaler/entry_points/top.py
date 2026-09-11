@@ -78,7 +78,15 @@ def show_status(status: BaseMessage, screen):
         dict(sorted((TaskState(pair.state).name, pair.count) for pair in status.taskManager.stateToCount)),
         format_integer_flag=True,
     )
-    object_manager = __generate_keyword_data("object_manager", {"num_of_objs": status.objectManager.numberOfObjects})
+    object_manager = __generate_keyword_data(
+        "object_manager",
+        {
+            "num_of_objs": status.objectManager.numberOfObjects,
+            "storage_objs": status.objectManager.storageObjectCount,
+            "storage_size": format_bytes(status.objectManager.storageTotalBytes),
+            "storage_wait": status.objectManager.storagePendingRequests,
+        },
+    )
     sent_table = __generate_keyword_data(
         "scheduler_sent", {pair.client: pair.number for pair in status.binder.sent}, format_integer_flag=True
     )
@@ -87,10 +95,7 @@ def show_status(status: BaseMessage, screen):
     )
     client_table = __generate_keyword_data(
         "client_manager",
-        {
-            pair.client.decode() if isinstance(pair.client, (bytes, bytearray)) else str(pair.client): pair.numTask
-            for pair in status.clientManager.clientToNumOfTask
-        },
+        {client.clientId.decode(): client.numTask for client in status.clientManager.clients},
         key_col_length=18,
     )
 

@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import signal
 import sys
+import time
 from typing import Optional, Tuple
 
 import psutil
@@ -37,6 +38,7 @@ class ProcessorHolder:
     ):
         self._processor_id: Optional[ProcessorID] = None
         self._task: Optional[Task] = None
+        self._task_started_at: Optional[float] = None
         self._suspended = False
 
         self._hard_suspend = hard_suspend
@@ -99,6 +101,13 @@ class ProcessorHolder:
 
     def set_task(self, task: Optional[Task]):
         self._task = task
+        self._task_started_at = time.monotonic() if task is not None else None
+
+    def task_age_seconds(self) -> int:
+        """Seconds this processor has been on its current task, 0 when idle."""
+        if self._task_started_at is None:
+            return 0
+        return int(time.monotonic() - self._task_started_at)
 
     def suspended(self) -> bool:
         return self._suspended

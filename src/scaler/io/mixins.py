@@ -1,4 +1,6 @@
 import abc
+import dataclasses
+import struct
 import threading
 from datetime import timedelta
 from enum import Enum
@@ -202,6 +204,27 @@ class SyncConnector(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
+@dataclasses.dataclass(frozen=True)
+class ObjectStorageTotals:
+    """What the object storage server holds, as its infoGetTotal request answers.
+
+    Fields the server does not answer with read as 0, so a newer reader stays usable against an older one.
+    """
+
+    object_count: int = 0  # object IDs the server holds
+    unique_object_count: int = 0  # distinct payloads behind them, so IDs minus what deduplication shares
+    total_bytes: int = 0  # bytes those payloads occupy
+    pending_request_count: int = 0  # requests waiting for an object that does not exist yet
+    pending_object_count: int = 0  # distinct objects those requests wait for
+    oldest_pending_seconds: int = 0  # how long the oldest of them has waited
+
+    @classmethod
+    def from_payload(cls, payload: bytes) -> "ObjectStorageTotals":
+        """Read the fields the server answered with and leave the rest at 0."""
+        field_count = min(len(payload) // struct.calcsize("<Q"), len(dataclasses.fields(cls)))
+        return cls(*struct.unpack_from(f"<{field_count}Q", payload))
+
+
 class AsyncObjectStorageConnector(Looper, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def connect(self, address: AddressConfig, security_config: Optional[SecurityConfig] = None):
@@ -238,6 +261,10 @@ class AsyncObjectStorageConnector(Looper, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def duplicate_object_id(self, object_id: ObjectID, new_object_id: ObjectID) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def info_get_total(self) -> ObjectStorageTotals:
         raise NotImplementedError()
 
 

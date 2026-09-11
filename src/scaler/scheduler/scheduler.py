@@ -280,6 +280,11 @@ class Scheduler:
                 self._worker_manager_controller.routine, CLEANUP_INTERVAL_SECONDS, swallow_routine_errors=True
             ),
             create_async_loop_routine(
+                self._object_controller.routine_storage_totals,
+                self._config_controller.get_config("status_report_interval_seconds"),
+                swallow_routine_errors=True,
+            ),
+            create_async_loop_routine(
                 self._information_controller.routine,
                 self._config_controller.get_config("status_report_interval_seconds"),
                 swallow_routine_errors=True,
