@@ -179,10 +179,18 @@ max_task_concurrency = 1
         self._assert_clean_exit(process, descendants)
 
     def test_sigint_during_startup_does_not_hang(self) -> None:
-        process = self._start_scaler()
-        time.sleep(0.5)  # somewhere in the middle of process spawning
-        descendants = self._descendants(process)
+        # sweep the delay: what decides the outcome is which YMQ callback is in flight when the interrupt
+        # unwinds, and a single delay reproduces the deadlock most of the time but not every time
+        for delay_seconds in (0.1, 0.3, 0.5, 0.7, 0.9):
+            with self.subTest(delay_seconds=delay_seconds):
+                self.setUp()
+                try:
+                    process = self._start_scaler()
+                    time.sleep(delay_seconds)
+                    descendants = self._descendants(process)
 
-        if process.poll() is None:
-            process.send_signal(signal.SIGINT)
-        self._assert_clean_exit(process, descendants)
+                    if process.poll() is None:
+                        process.send_signal(signal.SIGINT)
+                    self._assert_clean_exit(process, descendants)
+                finally:
+                    self.tearDown()

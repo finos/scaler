@@ -130,6 +130,30 @@ private:
     PyGILState_STATE _state {};
 };
 
+// Releases the GIL for as long as the object lives.
+//
+// A blocking call that waits on a YMQ event loop thread must not hold the GIL: those threads run Python
+// callbacks, so one parked in AcquireGIL cannot finish until the GIL is free. Prefer this over
+// Py_BEGIN_ALLOW_THREADS, which leaves the thread state saved if the code between the macros throws.
+class ReleaseGIL {
+public:
+    ReleaseGIL(): _state(PyEval_SaveThread())
+    {
+    }
+    ~ReleaseGIL()
+    {
+        PyEval_RestoreThread(_state);
+    }
+
+    ReleaseGIL(const ReleaseGIL&)            = delete;
+    ReleaseGIL& operator=(const ReleaseGIL&) = delete;
+    ReleaseGIL(ReleaseGIL&&)                 = delete;
+    ReleaseGIL& operator=(ReleaseGIL&&)      = delete;
+
+private:
+    PyThreadState* _state;
+};
+
 }  // namespace pymod
 }  // namespace utility
 }  // namespace scaler

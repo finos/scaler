@@ -7,6 +7,7 @@
 #include <memory>
 
 // First-party
+#include "scaler/utility/pymod/gil.h"
 #include "scaler/ymq/io_context.h"
 
 namespace scaler {
@@ -14,6 +15,7 @@ namespace ymq {
 namespace pymod {
 
 using scaler::utility::pymod::OwnedPyObject;
+using scaler::utility::pymod::ReleaseGIL;
 
 struct PyIOContext {
     PyObject_HEAD;
@@ -41,6 +43,9 @@ static int PyIOContext_init(PyIOContext* self, PyObject* args, PyObject* kwds)
 static void PyIOContext_dealloc(PyIOContext* self)
 {
     try {
+        // this reset joins the event loop threads, which cannot finish a Python callback without the GIL
+        ReleaseGIL releaseGIL;
+
         self->ioContext.reset();
     } catch (...) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to deallocate IOContext");

@@ -27,6 +27,7 @@ namespace pymod {
 
 using scaler::utility::pymod::AcquireGIL;
 using scaler::utility::pymod::OwnedPyObject;
+using scaler::utility::pymod::ReleaseGIL;
 
 struct PyConnectorSocket {
     PyObject_HEAD;
@@ -218,17 +219,20 @@ static PyObject* PyConnectorSocket_shutdown(
     }
 
     try {
+        // take ownership while the GIL is held, so a concurrent shutdown() finds nothing left to reset
+        std::unique_ptr<ConnectorSocket> socket {std::move(self->socket)};
+        std::shared_ptr<IOContext> ioContext {std::move(self->ioContext)};
+
         std::promise<void> onShutdown;
-        self->socket->shutdown([&onShutdown]() { onShutdown.set_value(); });
+        socket->shutdown([&onShutdown]() { onShutdown.set_value(); });
 
-        // release the GIL until the socket is actually closed
-        Py_BEGIN_ALLOW_THREADS;
+        // the resets below join the event loop threads, which cannot finish a Python callback without the GIL
+        ReleaseGIL releaseGIL;
+
         onShutdown.get_future().wait();
-        Py_END_ALLOW_THREADS;
 
-        // Explicitly call destructors for placement-new'd members
-        self->socket.reset();
-        self->ioContext.reset();
+        socket.reset();
+        ioContext.reset();
     } catch (...) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to shutdown ConnectorSocket");
         return nullptr;
