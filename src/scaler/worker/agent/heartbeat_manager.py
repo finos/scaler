@@ -1,5 +1,5 @@
 import time
-from typing import Dict, Optional
+from typing import Optional
 
 import psutil
 
@@ -18,7 +18,7 @@ class VanillaHeartbeatManager(Looper, HeartbeatManager):
     def __init__(
         self,
         object_storage_address: Optional[AddressConfig],
-        capabilities: Dict[str, int],
+        capabilities: dict[str, int],
         task_queue_size: int,
         worker_manager_id: bytes,
         security_config: Optional[SecurityConfig] = None,

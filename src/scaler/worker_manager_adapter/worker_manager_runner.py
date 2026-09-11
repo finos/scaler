@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 from scaler.config.common.security import SecurityConfig
 from scaler.config.types.address import AddressConfig
@@ -23,7 +23,7 @@ class WorkerManagerRunner:
         address: AddressConfig,
         name: str,
         heartbeat_interval_seconds: int,
-        capabilities: Dict[str, int],
+        capabilities: dict[str, int],
         max_provisioner_units: int,
         worker_manager_id: bytes,
         worker_provisioner: DeclarativeWorkerProvisioner,

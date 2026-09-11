@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from scaler.config.section.aws_hpc_worker_manager import AWSBatchWorkerManagerConfig, AWSHPCBackend
 from scaler.worker_manager_adapter.aws_hpc.worker import create_aws_batch_worker
@@ -23,7 +23,7 @@ class BatchWorkerProvisioner(DeclarativeWorkerProvisioner):
         self._config = config
         self._base_concurrency = config.max_concurrent_jobs
         self._capabilities = config.worker_config.per_worker_capabilities.capabilities
-        self._units: List[WorkerProcess] = []
+        self._units: list[WorkerProcess] = []
         self._capacity_coordinator = CapacityCoordinator(
             start_units=self.start_units,
             stop_units=self.stop_units,
@@ -36,7 +36,7 @@ class BatchWorkerProvisioner(DeclarativeWorkerProvisioner):
         return len(self._units)
 
     async def set_desired_task_concurrency(
-        self, requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
+        self, requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
     ) -> None:
         task_concurrency = extract_desired_count(requests, self._capabilities)
         new_desired = math.ceil(task_concurrency / self._base_concurrency)

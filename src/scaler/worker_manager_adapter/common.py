@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from scaler.protocol.capnp import WorkerManagerCommand
@@ -16,7 +16,7 @@ class WorkerNotFoundError(Exception):
 
 
 def extract_desired_count(
-    requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest], own_capabilities: Dict[str, int]
+    requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest], own_capabilities: dict[str, int]
 ) -> int:
     """Return the desired worker count for this provisioner from a declarative scaling command.
 
@@ -40,7 +40,7 @@ def load_requirements_content(requirements_txt: str) -> str:
     return requirements_txt
 
 
-def format_capabilities(capabilities: Dict[str, int]) -> str:
+def format_capabilities(capabilities: dict[str, int]) -> str:
     """
     Reverse of `parse_capabilities`: convert a capabilities dict into a
     comma-separated capability string (e.g. "linux,cpu=4").

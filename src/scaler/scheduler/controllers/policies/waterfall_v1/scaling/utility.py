@@ -1,9 +1,8 @@
-from typing import List
 
 from scaler.scheduler.controllers.policies.waterfall_v1.scaling.types import WaterfallRule
 
 
-def parse_waterfall_rules(policy_content: str) -> List[WaterfallRule]:
+def parse_waterfall_rules(policy_content: str) -> list[WaterfallRule]:
     """Parse waterfall rules from policy_content.
 
     Expected format (one rule per line, ``#`` comments supported)::
@@ -16,7 +15,7 @@ def parse_waterfall_rules(policy_content: str) -> List[WaterfallRule]:
 
     Raises ``ValueError`` on malformed input.
     """
-    rules: List[WaterfallRule] = []
+    rules: list[WaterfallRule] = []
     for line_number, raw_line in enumerate(policy_content.splitlines(), start=1):
         # Strip inline comments
         line = raw_line.split("#", 1)[0].strip()

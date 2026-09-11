@@ -31,7 +31,6 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import Dict, List
 
 import oci
 
@@ -100,7 +99,7 @@ class OCIProvisioner:
         instance_ocpus: float = 1.0,
         instance_memory_gb: float = 6.0,
         job_timeout_seconds: int = 3600,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         """
         Provision all required OCI resources for the adapter.
 
@@ -176,7 +175,7 @@ class OCIProvisioner:
             else:
                 raise
 
-        # Set lifecycle rule to clean up task objects after 1 day
+        # set lifecycle rule to clean up task objects after 1 day
         try:
             self._object_storage.put_object_lifecycle_policy(
                 namespace_name=self._namespace,
@@ -196,7 +195,7 @@ class OCIProvisioner:
                     ]
                 ),
             )
-            logger.info(f"Set Object Storage lifecycle rule: delete after {OCI_BUCKET_LIFECYCLE_DAYS} day(s)")
+            logger.info(f"set Object Storage lifecycle rule: delete after {OCI_BUCKET_LIFECYCLE_DAYS} day(s)")
         except Exception as exc:
             logger.warning(f"Failed to set lifecycle rule: {exc}")
 
@@ -345,7 +344,7 @@ class OCIProvisioner:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def save_config(config: Dict[str, object], config_file: str = DEFAULT_CONFIG_FILE) -> None:
+    def save_config(config: dict[str, object], config_file: str = DEFAULT_CONFIG_FILE) -> None:
         """Save provisioned config to a JSON file."""
         path = Path(config_file)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -354,7 +353,7 @@ class OCIProvisioner:
         logger.info(f"Config saved to {path.absolute()}")
 
     @staticmethod
-    def load_config(config_file: str = DEFAULT_CONFIG_FILE) -> Dict[str, object]:
+    def load_config(config_file: str = DEFAULT_CONFIG_FILE) -> dict[str, object]:
         """Load provisioned config from a JSON file."""
         path = Path(config_file)
         if not path.exists():
@@ -363,7 +362,7 @@ class OCIProvisioner:
             return json.load(fp)
 
     @staticmethod
-    def print_export_commands(config: Dict[str, object]) -> None:
+    def print_export_commands(config: dict[str, object]) -> None:
         """Print shell export commands for the most commonly needed config values."""
         print(f'''\
 export SCALER_OCI_REGION="{config["oci_region"]}"
@@ -375,7 +374,7 @@ export SCALER_OCI_SUBNET_ID="{config["subnet_id"]}"
 export SCALER_OCI_AVAILABILITY_DOMAIN="{config["availability_domain"]}"''')
 
     @staticmethod
-    def save_env_file(config: Dict[str, object], env_file: str = DEFAULT_ENV_FILE) -> None:
+    def save_env_file(config: dict[str, object], env_file: str = DEFAULT_ENV_FILE) -> None:
         """Save config as a sourceable shell env file."""
         path = Path(env_file)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -474,7 +473,7 @@ export SCALER_OCI_AVAILABILITY_DOMAIN="{config["availability_domain"]}"
     # Helpers
     # ------------------------------------------------------------------
 
-    def list_availability_domains(self) -> List[str]:
+    def list_availability_domains(self) -> list[str]:
         """Return the names of all Availability Domains in the compartment's region."""
         ads = self._identity.list_availability_domains(compartment_id=self._tenancy_id).data
         return [ad.name for ad in ads]

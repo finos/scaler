@@ -1,10 +1,10 @@
 import dataclasses
-from typing import Any, Dict
+from typing import Any
 
 from scaler.utility.identifiers import TaskID, WorkerID
 
 
 @dataclasses.dataclass
 class InformationSnapshot:
-    tasks: Dict[TaskID, Any]
-    workers: Dict[WorkerID, Any]
+    tasks: dict[TaskID, Any]
+    workers: dict[WorkerID, Any]

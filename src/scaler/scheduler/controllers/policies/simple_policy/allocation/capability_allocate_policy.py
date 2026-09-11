@@ -3,7 +3,7 @@ import logging
 import typing
 from collections import OrderedDict, defaultdict
 from itertools import takewhile
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Iterable, Optional
 
 from sortedcontainers import SortedList
 
@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 @dataclasses.dataclass(frozen=True)
 class _TaskHolder:
     task_id: TaskID = dataclasses.field()
-    capabilities: Set[str] = dataclasses.field()
+    capabilities: set[str] = dataclasses.field()
 
 
 @dataclasses.dataclass(frozen=True)
 class _WorkerHolder:
     worker_id: WorkerID = dataclasses.field()
 
-    capabilities: Set[str] = dataclasses.field()
+    capabilities: set[str] = dataclasses.field()
     queue_size: int = dataclasses.field()
 
     # Queued tasks, ordered from oldest to youngest tasks.
@@ -47,12 +47,12 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
     """
 
     def __init__(self):
-        self._worker_id_to_worker: Dict[WorkerID, _WorkerHolder] = {}
+        self._worker_id_to_worker: dict[WorkerID, _WorkerHolder] = {}
 
-        self._task_id_to_worker_id: Dict[TaskID, WorkerID] = {}
-        self._capability_to_worker_ids: Dict[str, Set[WorkerID]] = {}
+        self._task_id_to_worker_id: dict[TaskID, WorkerID] = {}
+        self._capability_to_worker_ids: dict[str, set[WorkerID]] = {}
 
-    def add_worker(self, worker: WorkerID, capabilities: Dict[str, int], queue_size: int) -> bool:
+    def add_worker(self, worker: WorkerID, capabilities: dict[str, int], queue_size: int) -> bool:
         if any(capability_value != -1 for capability_value in capabilities.values()):
             logger.warning(f"allocate policy ignores non-infinite worker capabilities: {capabilities!r}.")
 
@@ -70,7 +70,7 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
 
         return True
 
-    def remove_worker(self, worker: WorkerID) -> List[TaskID]:
+    def remove_worker(self, worker: WorkerID) -> list[TaskID]:
         worker_holder = self._worker_id_to_worker.pop(worker, None)
 
         if worker_holder is None:
@@ -87,13 +87,13 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
 
         return task_ids
 
-    def get_worker_ids(self) -> Set[WorkerID]:
+    def get_worker_ids(self) -> set[WorkerID]:
         return set(self._worker_id_to_worker.keys())
 
     def get_worker_by_task_id(self, task_id: TaskID) -> WorkerID:
         return self._task_id_to_worker_id.get(task_id, WorkerID.invalid_worker_id())
 
-    def balance(self) -> Dict[WorkerID, List[TaskID]]:
+    def balance(self) -> dict[WorkerID, list[TaskID]]:
         """Returns, for every worker id, the list of task ids to balance out."""
 
         has_idle_workers = any(worker.n_tasks() == 0 for worker in self._worker_id_to_worker.values())
@@ -175,8 +175,8 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
         # Worst-case time complexity is O(n_tasks * n_workers * n_capabilities).
         # If no tag is used in the cluster, complexity is always O(n_tasks * log(n_workers))
 
-        balancing_advice: Dict[WorkerID, List[TaskID]] = defaultdict(list)
-        unbalanceable_tasks: Set[bytes] = set()
+        balancing_advice: dict[WorkerID, list[TaskID]] = defaultdict(list)
+        unbalanceable_tasks: set[bytes] = set()
 
         while len(sorted_workers) >= 2:
             most_loaded_worker: _WorkerHolder = sorted_workers.pop(-1)
@@ -268,16 +268,16 @@ class CapabilityAllocatePolicy(TaskAllocatePolicy):
 
         return worker_id
 
-    def has_available_worker(self, capabilities: Optional[Dict[str, int]] = None) -> bool:
+    def has_available_worker(self, capabilities: Optional[dict[str, int]] = None) -> bool:
         return len(self.__get_available_workers_for_capabilities(capabilities or {})) > 0
 
-    def statistics(self) -> Dict:
+    def statistics(self) -> dict:
         return {
             worker.worker_id: {"free": worker.n_free(), "sent": worker.n_tasks(), "capabilities": worker.capabilities}
             for worker in self._worker_id_to_worker.values()
         }
 
-    def __get_available_workers_for_capabilities(self, capabilities: Dict[str, int]) -> List[_WorkerHolder]:
+    def __get_available_workers_for_capabilities(self, capabilities: dict[str, int]) -> list[_WorkerHolder]:
         # Worst-case time complexity is O(n_workers * len(capabilities))
 
         if any(capability not in self._capability_to_worker_ids for capability in capabilities.keys()):

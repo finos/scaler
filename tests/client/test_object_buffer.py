@@ -8,7 +8,7 @@ import asyncio
 import gc
 import unittest
 from concurrent.futures import Future
-from typing import Any, Coroutine, List, Tuple, TypeVar
+from typing import Any, Coroutine, TypeVar
 
 import numpy as np
 
@@ -24,7 +24,7 @@ class _FakeAgentConnector:
     """Minimal SyncConnector stub that records sent BaseMessages."""
 
     def __init__(self) -> None:
-        self.sent: List[BaseMessage] = []
+        self.sent: list[BaseMessage] = []
 
     def send(self, message: BaseMessage) -> None:
         self.sent.append(message)
@@ -34,7 +34,7 @@ class _FakeStorageConnector:
     """Minimal AsyncObjectStorageConnector stub that records set_object calls."""
 
     def __init__(self) -> None:
-        self.calls: List[Tuple[ObjectID, int]] = []  # (object_id, payload_size)
+        self.calls: list[tuple[ObjectID, int]] = []  # (object_id, payload_size)
 
     async def set_object(self, object_id: ObjectID, payload: bytes) -> None:
         self.calls.append((object_id, len(payload)))
@@ -55,7 +55,7 @@ class _FakeAgentBridge:
         return self._connector_storage
 
 
-def _make_buffer() -> Tuple[ObjectBuffer, _FakeAgentConnector, _FakeStorageConnector]:
+def _make_buffer() -> tuple[ObjectBuffer, _FakeAgentConnector, _FakeStorageConnector]:
     agent = _FakeAgentConnector()
     storage = _FakeStorageConnector()
     buf = ObjectBuffer(

@@ -1,5 +1,4 @@
 import unittest
-from typing import Dict
 
 from scaler.ui.app import _MIN_HUE_DISTANCE, _capabilities_color, _extract_hue, _find_best_hue, _hue_distance
 
@@ -57,15 +56,15 @@ class TestFindBestHue(unittest.TestCase):
 class TestCapabilitiesColor(unittest.TestCase):
     def test_deterministic(self) -> None:
         """Same string always returns same color."""
-        map1: Dict[str, str] = {}
-        map2: Dict[str, str] = {}
+        map1: dict[str, str] = {}
+        map2: dict[str, str] = {}
         c1 = _capabilities_color("cap_a", map1)
         c2 = _capabilities_color("cap_a", map2)
         self.assertEqual(c1, c2)
 
     def test_cached(self) -> None:
         """Once assigned, the color never changes even when more items are added."""
-        color_map: Dict[str, str] = {}
+        color_map: dict[str, str] = {}
         first = _capabilities_color("alpha", color_map)
         _capabilities_color("beta", color_map)
         _capabilities_color("gamma", color_map)
@@ -73,7 +72,7 @@ class TestCapabilitiesColor(unittest.TestCase):
 
     def test_stability_on_new_additions(self) -> None:
         """All previously assigned colors remain unchanged when new items are added."""
-        color_map: Dict[str, str] = {}
+        color_map: dict[str, str] = {}
         names = [f"worker_{i}" for i in range(8)]
         assigned = []
         for name in names:
@@ -90,7 +89,7 @@ class TestCapabilitiesColor(unittest.TestCase):
 
     def test_distinct_hues(self) -> None:
         """All assigned colors have pairwise hue distance >= MIN_HUE_DISTANCE (up to capacity)."""
-        color_map: Dict[str, str] = {}
+        color_map: dict[str, str] = {}
         names = [f"capability_{i}" for i in range(10)]
         for name in names:
             _capabilities_color(name, color_map)
@@ -107,8 +106,8 @@ class TestCapabilitiesColor(unittest.TestCase):
 
     def test_manager_and_capability_maps_independent(self) -> None:
         """Separate color maps don't interfere with each other."""
-        cap_map: Dict[str, str] = {}
-        mgr_map: Dict[str, str] = {}
+        cap_map: dict[str, str] = {}
+        mgr_map: dict[str, str] = {}
         _capabilities_color("shared_name", cap_map)
         _capabilities_color("shared_name", mgr_map)
         # Same input to separate maps produces same result (both start empty)
@@ -116,7 +115,7 @@ class TestCapabilitiesColor(unittest.TestCase):
 
     def test_no_capabilities_passthrough(self) -> None:
         """Pre-seeded #ffffff for '<no capabilities>' is not overwritten."""
-        color_map: Dict[str, str] = {"<no capabilities>": "#ffffff"}
+        color_map: dict[str, str] = {"<no capabilities>": "#ffffff"}
         result = _capabilities_color("<no capabilities>", color_map)
         self.assertEqual(result, "#ffffff")
 

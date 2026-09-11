@@ -2,7 +2,6 @@ import concurrent.futures
 import threading
 import time
 import unittest
-from typing import List
 
 import psutil
 
@@ -59,13 +58,13 @@ class TestDeadWorker(unittest.TestCase):
 
             self.__assert_new_client_can_run_task(address)
 
-    def __wait_for_worker_processes(self, worker_manager_pid: int, expected_count: int) -> List[psutil.Process]:
+    def __wait_for_worker_processes(self, worker_manager_pid: int, expected_count: int) -> list[psutil.Process]:
         """Waits until the worker manager has spawned expected_count worker processes, and returns them."""
 
         WORKER_SPAWN_TIMEOUT_SECONDS = 30.0
 
         deadline = time.time() + WORKER_SPAWN_TIMEOUT_SECONDS
-        worker_processes: List[psutil.Process] = []
+        worker_processes: list[psutil.Process] = []
 
         while len(worker_processes) < expected_count:
             if time.time() > deadline:

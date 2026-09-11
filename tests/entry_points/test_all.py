@@ -1,6 +1,6 @@
 import dataclasses
 import unittest
-from typing import List, Optional
+from typing import Optional
 from unittest.mock import patch
 
 from scaler.config.config_class import ConfigClass
@@ -25,7 +25,7 @@ class _SimpleWorkerConfig(ConfigClass):
 @dataclasses.dataclass
 class _SectionTestConfig(ConfigClass):
     scheduler: Optional[_SimpleSchedulerConfig] = dataclasses.field(default=None, metadata=dict(section="scheduler"))
-    workers: List[_SimpleWorkerConfig] = dataclasses.field(default_factory=list, metadata=dict(section="workers"))
+    workers: list[_SimpleWorkerConfig] = dataclasses.field(default_factory=list, metadata=dict(section="workers"))
 
 
 class TestSectionMetadata(unittest.TestCase):
@@ -79,7 +79,7 @@ class TestSectionMetadata(unittest.TestCase):
 @dataclasses.dataclass
 class _StubScalerAllConfig(ConfigClass):
     scheduler: Optional[_SimpleSchedulerConfig] = dataclasses.field(default=None, metadata=dict(section="scheduler"))
-    workers: List[_SimpleWorkerConfig] = dataclasses.field(default_factory=list, metadata=dict(section="workers"))
+    workers: list[_SimpleWorkerConfig] = dataclasses.field(default_factory=list, metadata=dict(section="workers"))
 
 
 class TestScalerAllEndToEnd(unittest.TestCase):

@@ -5,7 +5,7 @@ import sys
 import threading
 from collections import Counter
 from inspect import signature
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Iterable, Optional, TypeVar, Union
 
 from scaler.client.agent.bridge import ClientAgentBridge, check_browser_runtime, create_default_bridge
 from scaler.client.agent.future_manager import ClientFutureManager
@@ -42,7 +42,7 @@ _T = TypeVar("_T")
 @dataclasses.dataclass
 class _CallNode:
     func: Callable
-    args: Tuple[str, ...]
+    args: tuple[str, ...]
 
     def __post_init__(self):
         if not callable(self.func):
@@ -236,9 +236,9 @@ class Client:
     def submit_verbose(
         self,
         fn: Callable,
-        args: Tuple[Any, ...],
-        kwargs: Dict[str, Any],
-        capabilities: Optional[Dict[str, int]] = None,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        capabilities: Optional[dict[str, int]] = None,
         reserialize: bool = False,
     ) -> ScalerFuture:
         """
@@ -250,7 +250,7 @@ class Client:
         :param args: positional arguments will be passed to function
         :param kwargs: keyword arguments will be passed to function
         :param capabilities: capabilities used for routing the tasks, e.g. `{"gpu": 2, "memory": 1_000_000_000}`.
-        :type capabilities: Optional[Dict[str, int]]
+        :type capabilities: Optional[dict[str, int]]
         :param reserialize: If True, re-serialize this task's argument objects instead of reusing a cached snapshot,
                             and refresh the cache. Because identical content uploads once, the re-serialized bytes are
                             re-uploaded only if the content actually changed, so this is cheap when nothing changed. Use
@@ -278,9 +278,9 @@ class Client:
         self,
         fn: Callable[..., _T],
         *iterables: Iterable[Any],
-        capabilities: Optional[Dict[str, int]] = None,
+        capabilities: Optional[dict[str, int]] = None,
         reserialize: bool = False,
-    ) -> List[_T]:
+    ) -> list[_T]:
         """
         Apply function to every item of iterables, collecting the results in a list.
 
@@ -297,7 +297,7 @@ class Client:
         :param iterables: one or more iterables, each providing one argument to the function
         :type iterables: Iterable[Any]
         :param capabilities: capabilities used for routing the tasks, e.g. `{"gpu": 2, "memory": 1_000_000_000}`.
-        :type capabilities: Optional[Dict[str, int]]
+        :type capabilities: Optional[dict[str, int]]
         :param reserialize: If True, re-serialize the argument objects instead of reusing a cached snapshot, and refresh
                             the cache. Because identical content uploads once, the re-serialized bytes are re-uploaded
                             only if the content actually changed, so this is cheap when nothing changed. Use this after
@@ -305,7 +305,7 @@ class Client:
                             uploaded once.
         :type reserialize: bool
         :return: list of results, where each result is the return value of fn
-        :rtype: List[_T]
+        :rtype: list[_T]
         """
         if len(iterables) == 0:
             raise TypeError("map() requires at least one iterable")
@@ -316,9 +316,9 @@ class Client:
         self,
         fn: Callable[..., _T],
         iterable: Iterable[Iterable[Any]],
-        capabilities: Optional[Dict[str, int]] = None,
+        capabilities: Optional[dict[str, int]] = None,
         reserialize: bool = False,
-    ) -> List[_T]:
+    ) -> list[_T]:
         """
         Apply function to every item of iterable, where each item is an iterable of arguments to unpack.
 
@@ -335,7 +335,7 @@ class Client:
         :param iterable: iterable of argument iterables to unpack and pass to the function
         :type iterable: Iterable[Iterable[Any]]
         :param capabilities: capabilities used for routing the tasks, e.g. `{"gpu": 2, "memory": 1_000_000_000}`.
-        :type capabilities: Optional[Dict[str, int]]
+        :type capabilities: Optional[dict[str, int]]
         :param reserialize: If True, re-serialize the argument objects instead of reusing a cached snapshot, and refresh
                             the cache. Because identical content uploads once, the re-serialized bytes are re-uploaded
                             only if the content actually changed, so this is cheap when nothing changed. Use this after
@@ -343,7 +343,7 @@ class Client:
                             uploaded once.
         :type reserialize: bool
         :return: list of results, where each result is the return value of fn
-        :rtype: List[_T]
+        :rtype: list[_T]
         """
         iterable_list = [tuple(args) for args in iterable]
 
@@ -374,12 +374,12 @@ class Client:
 
     def get(
         self,
-        graph: Dict[str, Union[Any, Tuple[Union[Callable, str], ...]]],
-        keys: List[str],
+        graph: dict[str, Union[Any, tuple[Union[Callable, str], ...]]],
+        keys: list[str],
         block: bool = True,
-        capabilities: Optional[Dict[str, int]] = None,
+        capabilities: Optional[dict[str, int]] = None,
         reserialize: bool = False,
-    ) -> Dict[str, Union[Any, ScalerFuture]]:
+    ) -> dict[str, Union[Any, ScalerFuture]]:
         """
         .. code-block:: python
            :linenos:
@@ -392,20 +392,20 @@ class Client:
             }
 
         :param graph: dictionary presentation of task graphs
-        :type graph: Dict[str, Union[Any, Tuple[Union[Callable, Any]]
+        :type graph: dict[str, Union[Any, tuple[Union[Callable, Any]]
         :param keys: list of keys want to get results from computed graph
-        :type keys: List[str]
+        :type keys: list[str]
         :param block: if True, it will directly return a dictionary that maps from keys to results
         :return: dictionary of mapping keys to futures, or map to results if block=True is specified
         :param capabilities: capabilities used for routing the tasks, e.g. `{"gpu": 2, "memory": 1_000_000_000}`.
-        :type capabilities: Optional[Dict[str, int]]
+        :type capabilities: Optional[dict[str, int]]
         :param reserialize: If True, re-serialize the graph's data nodes instead of reusing a cached snapshot, and
                             refresh the cache. Because identical content uploads once, the re-serialized bytes are
                             re-uploaded only if the content actually changed, so this is cheap when nothing changed. Use
                             this after mutating a data node in place. Defaults to False, where a reused object is
                             serialized and uploaded once.
         :type reserialize: bool
-        :rtype: Dict[ScalerFuture]
+        :rtype: dict[ScalerFuture]
         """
 
         self.__assert_client_not_stopped()
@@ -570,16 +570,16 @@ class Client:
     def __submit(
         self,
         function_object_id: ObjectID,
-        args: Tuple[Any, ...],
+        args: tuple[Any, ...],
         delayed: bool,
-        capabilities: Optional[Dict[str, int]],
+        capabilities: Optional[dict[str, int]],
         reserialize: bool,
-    ) -> Tuple[Task, ScalerFuture]:
+    ) -> tuple[Task, ScalerFuture]:
         task_id = TaskID.generate_task_id()
 
         capabilities = capabilities or {}
 
-        function_args: List[Union[ObjectID, TaskID]] = []
+        function_args: list[Union[ObjectID, TaskID]] = []
         for arg in args:
             if isinstance(arg, ObjectReference):
                 if not self._object_buffer.is_valid_object_id(arg.object_id):
@@ -609,7 +609,7 @@ class Client:
         return task, future
 
     @staticmethod
-    def __convert_kwargs_to_args(fn: Callable, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> Tuple[Any, ...]:
+    def __convert_kwargs_to_args(fn: Callable, args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[Any, ...]:
         all_params = [p for p in signature(fn).parameters.values()]
 
         params = [p for p in all_params if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}]
@@ -636,10 +636,10 @@ class Client:
         return tuple(args_list)
 
     def __split_data_and_graph(
-        self, graph: Dict[str, Union[Any, Tuple[Union[Callable, str], ...]]], reserialize: bool
-    ) -> Tuple[Dict[str, Tuple[ObjectID, Any]], Dict[str, _CallNode]]:
+        self, graph: dict[str, Union[Any, tuple[Union[Callable, str], ...]]], reserialize: bool
+    ) -> tuple[dict[str, tuple[ObjectID, Any]], dict[str, _CallNode]]:
         call_graph = {}
-        node_name_to_argument: Dict[str, Tuple[ObjectID, Union[Any, Tuple[Union[Callable, Any], ...]]]] = dict()
+        node_name_to_argument: dict[str, tuple[ObjectID, Union[Any, tuple[Union[Callable, Any], ...]]]] = dict()
 
         for node_name, node in graph.items():
             if isinstance(node, tuple) and len(node) > 0 and callable(node[0]):
@@ -659,7 +659,7 @@ class Client:
 
     @staticmethod
     def __check_graph(
-        node_to_argument: Dict[str, Tuple[ObjectID, Any]], call_graph: Dict[str, _CallNode], keys: List[str]
+        node_to_argument: dict[str, tuple[ObjectID, Any]], call_graph: dict[str, _CallNode], keys: list[str]
     ):
         duplicate_keys = [key for key, count in dict(Counter(keys)).items() if count > 1]
         if duplicate_keys:
@@ -683,12 +683,12 @@ class Client:
 
     def __construct_graph(
         self,
-        node_name_to_arguments: Dict[str, Tuple[ObjectID, Any]],
-        call_graph: Dict[str, _CallNode],
-        keys: List[str],
+        node_name_to_arguments: dict[str, tuple[ObjectID, Any]],
+        call_graph: dict[str, _CallNode],
+        keys: list[str],
         block: bool,
-        capabilities: Dict[str, int],
-    ) -> Tuple[GraphTask, Dict[str, ScalerFuture], Dict[str, ScalerFuture]]:
+        capabilities: dict[str, int],
+    ) -> tuple[GraphTask, dict[str, ScalerFuture], dict[str, ScalerFuture]]:
         graph_task_id = TaskID.generate_task_id()
 
         node_name_to_task_id = {node_name: TaskID.generate_task_id() for node_name in call_graph.keys()}
@@ -701,7 +701,7 @@ class Client:
             task_id = node_name_to_task_id[node_name]
             function_cache = self._object_buffer.buffer_send_function(node.func)
 
-            arguments: List[Union[TaskID, ObjectID]] = []
+            arguments: list[Union[TaskID, ObjectID]] = []
             for arg in node.args:
                 assert arg in call_graph or arg in node_name_to_arguments
 

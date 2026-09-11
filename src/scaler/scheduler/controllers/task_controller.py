@@ -3,7 +3,7 @@ import contextlib
 import logging
 import sys
 from collections import deque
-from typing import AsyncGenerator, Deque, Dict, List, Literal, Optional, Tuple
+from typing import AsyncGenerator, Literal, Optional
 
 from scaler.io.mixins import AsyncBinder, AsyncObjectStorageConnector, AsyncPublisher
 from scaler.protocol.capnp import (
@@ -98,10 +98,10 @@ class VanillaTaskController(TaskController, Looper, Reporter):
 
         self._graph_controller: Optional[GraphTaskController] = None
 
-        self._task_id_to_task: Dict[TaskID, Task] = dict()
+        self._task_id_to_task: dict[TaskID, Task] = dict()
         self._task_state_manager: TaskStateManager = TaskStateManager(debug=True)
 
-        self._unassigned: Deque[TaskID] = deque()
+        self._unassigned: deque[TaskID] = deque()  # type: ignore[misc]
 
     def register(
         self,
@@ -722,7 +722,7 @@ class VanillaTaskController(TaskController, Looper, Reporter):
 
         await asyncio.gather(*futures)
 
-    def __acquire_workers(self) -> List[Tuple[TaskID, WorkerID]]:
+    def __acquire_workers(self) -> list[tuple[TaskID, WorkerID]]:
         """please note this function has to be atomic, means no async decorated in order to make unassigned queue to be
         synced, also this function should return as list not generator because of atomic
         """

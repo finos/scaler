@@ -1,5 +1,5 @@
 import abc
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 from scaler.protocol.capnp import Task
 from scaler.utility.identifiers import TaskID, WorkerID
@@ -7,17 +7,17 @@ from scaler.utility.identifiers import TaskID, WorkerID
 
 class TaskAllocatePolicy(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def add_worker(self, worker: WorkerID, capabilities: Dict[str, int], queue_size: int) -> bool:
+    def add_worker(self, worker: WorkerID, capabilities: dict[str, int], queue_size: int) -> bool:
         """add worker to worker collection"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def remove_worker(self, worker: WorkerID) -> List[TaskID]:
+    def remove_worker(self, worker: WorkerID) -> list[TaskID]:
         """remove worker to worker collection, and return list of task_ids of removed worker"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_worker_ids(self) -> Set[WorkerID]:
+    def get_worker_ids(self) -> set[WorkerID]:
         """get all worker ids as list"""
         raise NotImplementedError()
 
@@ -28,7 +28,7 @@ class TaskAllocatePolicy(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def balance(self) -> Dict[WorkerID, List[TaskID]]:
+    def balance(self) -> dict[WorkerID, list[TaskID]]:
         """balance worker, it should return list of task ids for over burdened worker, represented as worker
         identity to list of task ids dictionary"""
         raise NotImplementedError()
@@ -46,10 +46,10 @@ class TaskAllocatePolicy(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def has_available_worker(self, capabilities: Optional[Dict[str, int]] = None) -> bool:
+    def has_available_worker(self, capabilities: Optional[dict[str, int]] = None) -> bool:
         """has available worker or not, possibly constrained to the requested task capabilities"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def statistics(self) -> Dict:
+    def statistics(self) -> dict:
         raise NotImplementedError()

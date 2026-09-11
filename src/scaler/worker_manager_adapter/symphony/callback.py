@@ -1,6 +1,5 @@
 import concurrent.futures
 import threading
-from typing import Dict
 
 import cloudpickle
 
@@ -15,7 +14,7 @@ except ImportError:
 class SessionCallback(soamapi.SessionCallback):
     def __init__(self):
         self._callback_lock = threading.Lock()
-        self._task_id_to_future: Dict[str, concurrent.futures.Future] = {}
+        self._task_id_to_future: dict[str, concurrent.futures.Future] = {}
 
     def on_response(self, task_output_handle):
         with self._callback_lock:

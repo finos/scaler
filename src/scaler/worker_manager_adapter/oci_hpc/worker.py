@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Dict, Optional
+from typing import Optional
 
 from scaler.config.types.address import AddressConfig
 from scaler.config.types.oci_auth_type import OCIAuthType
@@ -24,7 +24,7 @@ def create_oci_hpc_worker(
     instance_shape: str = "CI.Standard.E4.Flex",
     instance_ocpus: float = 1.0,
     instance_memory_gb: float = 6.0,
-    capabilities: Optional[Dict[str, int]] = None,
+    capabilities: Optional[dict[str, int]] = None,
     base_concurrency: int = 100,
     heartbeat_interval_seconds: int = 1,
     death_timeout_seconds: int = 30,

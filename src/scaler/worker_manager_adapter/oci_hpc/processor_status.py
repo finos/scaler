@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from scaler.protocol.capnp import ProcessorStatus, Resource
 from scaler.worker_manager_adapter.mixins import ProcessorStatusProvider
@@ -14,7 +14,7 @@ class OCIProcessorStatusProvider(ProcessorStatusProvider):
     def set_task_manager(self, task_manager: "TaskManager") -> None:
         self._task_manager = task_manager
 
-    def get_processor_statuses(self) -> List[ProcessorStatus]:
+    def get_processor_statuses(self) -> list[ProcessorStatus]:
         assert self._task_manager is not None, "set_task_manager() must be called before get_processor_statuses()"
         processing_tasks = self._task_manager.processing_task_count
         return [

@@ -8,7 +8,6 @@ import time
 import unittest
 from concurrent.futures import Future
 from concurrent.futures import wait as wait_futures
-from typing import List
 
 import psutil
 
@@ -141,7 +140,7 @@ class TestBalance(unittest.TestCase):
         client = Client(address=address)
         second_manager_process = None
         try:
-            futures: List[Future] = [
+            futures: list[Future] = [
                 client.submit(sleep_and_return_pid, TASK_SLEEP_SECONDS),
                 client.submit(sleep_and_return_pid, TASK_SLEEP_SECONDS),
             ]
@@ -251,7 +250,7 @@ class TestBalance(unittest.TestCase):
         client = Client(address=address)
         second_manager_process = None
         try:
-            futures: List[Future] = [
+            futures: list[Future] = [
                 client.submit_verbose(sleep_and_return_pid, (TASK_SLEEP_SECONDS,), {}, capabilities=CAPABILITIES),
                 client.submit_verbose(sleep_and_return_pid, (TASK_SLEEP_SECONDS,), {}, capabilities=CAPABILITIES),
             ]

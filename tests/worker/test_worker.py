@@ -11,7 +11,7 @@ nonzero exit code.
 
 import asyncio
 import unittest
-from typing import Any, Awaitable, Callable, Tuple
+from typing import Any, Awaitable, Callable
 from unittest import mock
 
 import scaler.worker.worker as worker_module
@@ -110,7 +110,7 @@ class WorkerTeardownYMQErrorTest(unittest.IsolatedAsyncioTestCase):
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
 
-    async def _run_worker(self, task_routine_error: ymq.YMQException) -> Tuple[mock.MagicMock, int]:
+    async def _run_worker(self, task_routine_error: ymq.YMQException) -> tuple[mock.MagicMock, int]:
         worker = self._build_worker(task_routine_error)
         worker._loop = asyncio.get_running_loop()
         with mock.patch.object(worker_module, "logger") as mock_logger:

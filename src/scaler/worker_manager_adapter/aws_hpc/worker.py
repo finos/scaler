@@ -6,7 +6,7 @@ Creates a WorkerProcess configured to submit tasks to AWS Batch for execution.
 
 import uuid
 from functools import partial
-from typing import Dict, Optional
+from typing import Optional
 
 from scaler.config.types.address import AddressConfig
 from scaler.worker_manager_adapter.aws_hpc.heartbeat_manager import AWSProcessorStatusProvider
@@ -24,7 +24,7 @@ def create_aws_batch_worker(
     worker_manager_id: bytes,
     name: Optional[str] = None,
     s3_prefix: str = "scaler-tasks",
-    capabilities: Optional[Dict[str, int]] = None,
+    capabilities: Optional[dict[str, int]] = None,
     base_concurrency: int = 100,
     heartbeat_interval_seconds: int = 1,
     death_timeout_seconds: int = 30,

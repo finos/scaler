@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Iterable, Optional, TypeVar
 
 from scaler.protocol import capnp
 from scaler.protocol.capnp import ScalingManagerStatus, TaskCapability, WorkerManagerCommand
@@ -6,7 +6,7 @@ from scaler.protocol.capnp import ScalingManagerStatus, TaskCapability, WorkerMa
 StateT = TypeVar("StateT")
 
 
-def forget_departed_managers(state_by_manager: Dict[bytes, StateT], live_manager_ids: Iterable[bytes]) -> None:
+def forget_departed_managers(state_by_manager: dict[bytes, StateT], live_manager_ids: Iterable[bytes]) -> None:
     """Drops per-manager state for managers the scheduler no longer knows about.
 
     A policy is only ever told about a manager that is heartbeating, so anything it remembers per manager id
@@ -20,7 +20,7 @@ def forget_departed_managers(state_by_manager: Dict[bytes, StateT], live_manager
 
 
 def build_scaling_manager_status(
-    managed_workers: Dict[bytes, list], worker_manager_details: Optional[List[dict]] = None
+    managed_workers: dict[bytes, list], worker_manager_details: Optional[list[dict]] = None
 ) -> ScalingManagerStatus:
     details = worker_manager_details or []
     return capnp.ScalingManagerStatus(
@@ -44,10 +44,10 @@ def build_scaling_manager_status(
     )
 
 
-def build_set_desired_command(desired_per_capset: List[Tuple[Dict[str, int], int]]) -> WorkerManagerCommand:
+def build_set_desired_command(desired_per_capset: list[tuple[dict[str, int], int]]) -> WorkerManagerCommand:
     """Build a declarative setDesiredTaskConcurrency command.
 
-    Each entry in desired_per_capset maps a capability set (as Dict[str, int]) to a
+    Each entry in desired_per_capset maps a capability set (as dict[str, int]) to a
     desired worker count. An empty list is valid and yields a command whose requests
     list is empty (declarative "no opinion").
     """

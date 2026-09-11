@@ -1,5 +1,5 @@
 import dataclasses
-from typing import ClassVar, Dict, List, Optional
+from typing import ClassVar, Optional
 
 from scaler.config.common.logging import LoggingConfig
 from scaler.config.common.python_worker_environment import PythonWorkerEnvironmentConfig
@@ -69,13 +69,13 @@ class ORBAWSEC2WorkerManagerConfig(ConfigClass):
     logging_config: LoggingConfig = dataclasses.field(default_factory=LoggingConfig)
 
     instance_type: str = dataclasses.field(default="t2.micro", metadata=dict(help="EC2 instance type"))
-    security_group_ids: List[str] = dataclasses.field(
+    security_group_ids: list[str] = dataclasses.field(
         default_factory=list,
         metadata=dict(
             type=lambda s: [x for x in s.split(",") if x], help="Comma-separated list of AWS security group IDs"
         ),
     )
-    instance_tags: Dict[str, str] = dataclasses.field(
+    instance_tags: dict[str, str] = dataclasses.field(
         default_factory=dict,
         metadata=dict(
             type=lambda s: dict(kv.split("=", 1) for kv in s.split(",") if "=" in kv),

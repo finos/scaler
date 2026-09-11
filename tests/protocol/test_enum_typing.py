@@ -1,6 +1,5 @@
 import enum
 import unittest
-from typing import Dict
 
 from scaler.protocol.capnp import StateTask, TaskState
 
@@ -22,7 +21,7 @@ class TestEnumTyping(unittest.TestCase):
         self.assertEqual(TaskState(4).value, 4)
 
     def test_dict_key(self):
-        mapping: Dict[TaskState, str] = {
+        mapping: dict[TaskState, str] = {
             TaskState.inactive: "init",
             TaskState.running: "run",
             TaskState.success: "done",

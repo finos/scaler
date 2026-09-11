@@ -1,11 +1,11 @@
 import dataclasses
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from scaler.config.type_utils import get_type_args, is_config_class
 
 
-def _find_config_arg(argv: List[str]) -> Optional[str]:
+def _find_config_arg(argv: list[str]) -> Optional[str]:
     """Pre-scan argv for --config/-c without invoking the full parser."""
     for i, arg in enumerate(argv):
         if arg in ("--config", "-c") and i + 1 < len(argv):
@@ -15,7 +15,7 @@ def _find_config_arg(argv: List[str]) -> Optional[str]:
     return None
 
 
-def _load_toml(config_path: str) -> Dict[str, Any]:
+def _load_toml(config_path: str) -> dict[str, Any]:
     """Parse a TOML file and return its full contents as a dict."""
     try:
         import tomllib  # Python 3.11+
@@ -25,7 +25,7 @@ def _load_toml(config_path: str) -> Dict[str, Any]:
         return tomllib.load(f)
 
 
-def _toml_section_defaults(section_data: Dict[str, Any], cls: type) -> Dict[str, Any]:
+def _toml_section_defaults(section_data: dict[str, Any], cls: type) -> dict[str, Any]:
     """Flatten a raw TOML section dict into argparse-compatible defaults.
 
     Keys correspond to the long CLI argument name (without '--'), and may use
@@ -35,8 +35,8 @@ def _toml_section_defaults(section_data: Dict[str, Any], cls: type) -> Dict[str,
     ConfigClass fields), so unrelated TOML keys are silently ignored.
     """
     # Map normalized TOML key -> argparse dest (field name).
-    key_to_dest: Dict[str, str] = {}
-    for f in dataclasses.fields(cls):
+    key_to_dest: dict[str, str] = {}
+    for f in dataclasses.fields(cls):  # type: ignore[arg-type]
         if is_config_class(f.type):
             for ff in dataclasses.fields(f.type):  # type: ignore[arg-type]
                 long = ff.metadata.get("long", f"--{ff.name.replace('_', '-')}")
@@ -45,7 +45,7 @@ def _toml_section_defaults(section_data: Dict[str, Any], cls: type) -> Dict[str,
             long = f.metadata.get("long", f"--{f.name.replace('_', '-')}")
             key_to_dest[long.lstrip("-").replace("-", "_")] = f.name
 
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
     for key, value in section_data.items():
         dest = key_to_dest.get(key.replace("-", "_"))
         if dest is not None:
@@ -53,14 +53,14 @@ def _toml_section_defaults(section_data: Dict[str, Any], cls: type) -> Dict[str,
     return result
 
 
-def _env_defaults(cls: type) -> Dict[str, Any]:
+def _env_defaults(cls: type) -> dict[str, Any]:
     """Collect env-var values for fields that declare env_var= metadata.
 
     Applies the same type coercion that argparse would use for CLI values,
     so the value stored as a default is already the correct Python type.
     """
-    result: Dict[str, Any] = {}
-    for field in dataclasses.fields(cls):
+    result: dict[str, Any] = {}
+    for field in dataclasses.fields(cls):  # type: ignore[arg-type]
         if is_config_class(field.type):
             result.update(_env_defaults(field.type))  # type: ignore[arg-type]
             continue

@@ -9,7 +9,7 @@ connector pair can be driven from plain CPython (no JSPI required).
 import asyncio
 import threading
 import unittest
-from typing import Any, List
+from typing import Any
 from unittest.mock import Mock, patch
 
 from scaler.client.agent import bridge as bridge_module
@@ -67,7 +67,7 @@ class InProcessConnectorPairTest(unittest.TestCase):
 
         incoming, outgoing = self._loop.run_until_complete(_new_queues())
 
-        received: List[Any] = []
+        received: list[Any] = []
 
         async def callback(msg):
             received.append(msg)

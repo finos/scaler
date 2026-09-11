@@ -6,7 +6,7 @@ import platform
 import sys
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import cloudpickle
 import psutil
@@ -23,14 +23,14 @@ class ObjectCache(threading.Thread):
     def __init__(self, garbage_collect_interval_seconds: int, trim_memory_threshold_bytes: int):
         threading.Thread.__init__(self)
 
-        self._serializers: Dict[ClientID, Serializer] = dict()
+        self._serializers: dict[ClientID, Serializer] = dict()
 
         self._garbage_collect_interval_seconds = garbage_collect_interval_seconds
         self._previous_garbage_collect_time = time.time()
         self._trim_memory_threshold_bytes = trim_memory_threshold_bytes
 
-        self._cached_objects: Dict[ObjectID, Any] = {}
-        self._cached_objects_alive_since: Dict[ObjectID, float] = dict()
+        self._cached_objects: dict[ObjectID, Any] = {}
+        self._cached_objects_alive_since: dict[ObjectID, float] = dict()
         self._process = psutil.Process(multiprocessing.current_process().pid)
         # Windows has no libc-style malloc_trim; skip the optional RSS-trim hook there.
         if sys.platform == "win32":

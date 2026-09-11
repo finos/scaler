@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import shlex
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 import boto3
 
@@ -48,7 +48,7 @@ class ECSWorkerProvisioner(DeclarativeWorkerProvisioner):
         self._ecs_task_memory = config.ecs_task_memory
         self._ecs_subnets = config.ecs_subnets
         self._worker_manager_id = config.worker_manager_config.worker_manager_id.encode()
-        self._units: List[str] = []  # ECS task ARNs of active units
+        self._units: list[str] = []  # ECS task ARNs of active units
         self._capacity_coordinator = CapacityCoordinator(
             start_units=self.start_units,
             stop_units=self.stop_units,
@@ -141,7 +141,7 @@ class ECSWorkerProvisioner(DeclarativeWorkerProvisioner):
         return len(self._units)
 
     async def set_desired_task_concurrency(
-        self, requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
+        self, requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
     ) -> None:
         task_concurrency = extract_desired_count(requests, self._capabilities)
         await self._capacity_coordinator.set_desired_unit_count(math.ceil(task_concurrency / self._ecs_task_cpu))

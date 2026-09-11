@@ -33,7 +33,7 @@ class LoggingLevel(enum.Enum):
 
 
 def setup_logger(
-    log_paths: typing.Tuple[str, ...] = DEFAULT_LOGGING_PATHS,
+    log_paths: tuple[str, ...] = DEFAULT_LOGGING_PATHS,
     logging_config_file: typing.Optional[str] = None,
     logging_level: str = LoggingLevel.INFO.name,
     process_name: str = "scaler",
@@ -65,7 +65,7 @@ def detect_log_type(file_name: str) -> LogType:
     return LogType.File
 
 
-def __generate_log_config(process_name: str) -> typing.Dict:
+def __generate_log_config(process_name: str) -> dict:
     standard_format = f"%(asctime)s %(levelname)s {process_name}[%(process)d]: %(message)s"
     verbose_format = (
         f"%(asctime)s %(levelname)s {process_name}[%(process)d] " f"%(name)s:%(funcName)s:%(lineno)s: %(message)s"
@@ -86,7 +86,7 @@ def __generate_log_config(process_name: str) -> typing.Dict:
 
 
 def __logging_config(
-    log_paths: typing.List[LogPath], logging_level: str = LoggingLevel.INFO.name, process_name: str = "scaler"
+    log_paths: list[LogPath], logging_level: str = LoggingLevel.INFO.name, process_name: str = "scaler"
 ):
     logging.addLevelName(logging.INFO, "INFO")
     logging.addLevelName(logging.WARNING, "WARNING")
@@ -135,7 +135,7 @@ def __create_time_rotating_file_handler(logging_level: str, file_path: str):
     }
 
 
-def __create_size_rotating_file_handler(log_path) -> typing.Dict:
+def __create_size_rotating_file_handler(log_path) -> dict:
     return {
         "class": "logging.handlers.RotatingFileHandler",
         "level": "INFO",
@@ -151,13 +151,13 @@ def __parse_logging_level(value):
     return LoggingLevel(value).value
 
 
-def get_logger_info(logger: logging.Logger) -> typing.Tuple[str, str, typing.Tuple[str, ...]]:
+def get_logger_info(logger: logging.Logger) -> tuple[str, str, tuple[str, ...]]:
     """
     Retrieves the format string, level string, and all active log paths from a logger's handlers.
     """
     log_level_str = logging.getLevelName(logger.getEffectiveLevel())
     log_format_str = ""
-    log_paths: typing.List[str] = []
+    log_paths: list[str] = []
 
     if logger.hasHandlers():
         first_handler = logger.handlers[0]

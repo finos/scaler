@@ -1,7 +1,7 @@
 import argparse
 import enum
 import typing
-from typing import Any, Dict, Type
+from typing import Any
 
 from scaler.config.mixins import ConfigType
 
@@ -16,7 +16,7 @@ def parse_bool(s: str) -> bool:
     raise argparse.ArgumentTypeError(f"'{s}' is not a valid bool")
 
 
-def parse_enum(s: str, enumm: Type[enum.Enum]) -> Any:
+def parse_enum(s: str, enumm: type[enum.Enum]) -> Any:
     try:
         return enumm[s]
     except KeyError as e:
@@ -46,12 +46,12 @@ def get_optional_type(ty: Any) -> type:
 
 
 def is_list(ty: Any) -> bool:
-    """determines if `ty` is typing.List or list"""
+    """determines if `ty` is list or list"""
     return typing.get_origin(ty) is list or ty is list
 
 
 def get_list_type(ty: Any) -> type:
-    """get the generic type of a typing.List[T] or list[T]"""
+    """get the generic type of a list[T] or list[T]"""
     return typing.get_args(ty)[0]
 
 
@@ -81,7 +81,7 @@ def is_enum(ty: Any) -> bool:
         return False
 
 
-def get_type_args(ty: Any) -> Dict[str, Any]:
+def get_type_args(ty: Any) -> dict[str, Any]:
     """
     The type of a field implies several options for its argument parsing,
     such as `type`, `nargs`, and `required`
@@ -89,7 +89,7 @@ def get_type_args(ty: Any) -> Dict[str, Any]:
     For example a parameter of type Option[T] is parsed as `T`,
     has no implication on `nargs`, and is not required
 
-    Similarly a parameter of List[T] is also parsed as `T`,
+    Similarly a parameter of list[T] is also parsed as `T`,
     might have `nargs="*"`, and has no implication on `required`
 
     This function determines these settings based upon a given type.

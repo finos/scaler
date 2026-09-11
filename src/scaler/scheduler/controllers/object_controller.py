@@ -1,7 +1,7 @@
 import dataclasses
 import logging
 from asyncio import Queue
-from typing import Optional, Set
+from typing import Optional
 
 from scaler.io.mixins import AsyncBinder, AsyncObjectStorageConnector, AsyncPublisher
 from scaler.protocol.capnp import ObjectInstruction, ObjectManagerStatus, ObjectMetadata
@@ -85,7 +85,7 @@ class VanillaObjectController(ObjectController, Looper, Reporter):
         self._object_tracker.add_object(creation)
         self._object_tracker.add_blocks_for_one_object(creation.get_object_key(), {creation.object_creator})
 
-    def on_del_objects(self, client_id: ClientID, object_ids: Set[ObjectID]):
+    def on_del_objects(self, client_id: ClientID, object_ids: set[ObjectID]):
         for object_id in object_ids:
             self._object_tracker.remove_one_block_for_objects({object_id}, client_id)
 

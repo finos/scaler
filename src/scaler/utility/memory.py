@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional
 
 import psutil
 
@@ -48,7 +48,7 @@ def _read_cgroup_int(path: str) -> Optional[int]:
         return None
 
 
-def _cgroup_limit_and_usage() -> Optional[Tuple[int, int]]:
+def _cgroup_limit_and_usage() -> Optional[tuple[int, int]]:
     """Return (limit_bytes, usage_bytes) from the cgroup memory controller, or None when the process is
     not under a memory-limited cgroup. Prefers cgroup v2, falls back to v1."""
     limit = _read_cgroup_int(_CGROUP_V2_MAX)
@@ -66,7 +66,7 @@ def _cgroup_limit_and_usage() -> Optional[Tuple[int, int]]:
     return None
 
 
-def get_memory_limit_and_available() -> Tuple[int, int]:
+def get_memory_limit_and_available() -> tuple[int, int]:
     """Return (limit_bytes, available_bytes) for the memory ceiling the process actually runs under.
 
     Inside a memory-limited cgroup (e.g. a Kubernetes pod) this is the cgroup limit and its headroom

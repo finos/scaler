@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 from scaler.protocol.capnp import (
     ClientDisconnect,
@@ -50,7 +50,7 @@ class ObjectController(Reporter):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def on_del_objects(self, client_id: ClientID, object_ids: Set[ObjectID]):
+    def on_del_objects(self, client_id: ClientID, object_ids: set[ObjectID]):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -68,7 +68,7 @@ class ObjectController(Reporter):
 
 class ClientController(Reporter):
     @abc.abstractmethod
-    def get_client_task_ids(self, client_id: ClientID) -> Set[TaskID]:
+    def get_client_task_ids(self, client_id: ClientID) -> set[TaskID]:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -203,11 +203,11 @@ class WorkerController(Reporter):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_worker_ids(self) -> Set[WorkerID]:
+    def get_worker_ids(self) -> set[WorkerID]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_workers_by_manager_id(self, manager_id: bytes) -> List[WorkerID]:
+    def get_workers_by_manager_id(self, manager_id: bytes) -> list[WorkerID]:
         """get all worker ids belonging to a specific worker manager"""
         raise NotImplementedError()
 
@@ -220,17 +220,17 @@ class InformationController(metaclass=abc.ABCMeta):
 
 class PolicyController(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def add_worker(self, worker: WorkerID, capabilities: Dict[str, int], queue_size: int) -> bool:
+    def add_worker(self, worker: WorkerID, capabilities: dict[str, int], queue_size: int) -> bool:
         """add worker to worker collection"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def remove_worker(self, worker: WorkerID) -> List[TaskID]:
+    def remove_worker(self, worker: WorkerID) -> list[TaskID]:
         """remove worker to worker collection, and return list of task_ids of removed worker"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_worker_ids(self) -> Set[WorkerID]:
+    def get_worker_ids(self) -> set[WorkerID]:
         """get all worker ids as list"""
         raise NotImplementedError()
 
@@ -241,7 +241,7 @@ class PolicyController(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def balance(self) -> Dict[WorkerID, List[TaskID]]:
+    def balance(self) -> dict[WorkerID, list[TaskID]]:
         """balance worker, it should return list of task ids for over burdened worker, represented as worker
         identity to list of task ids dictionary"""
         raise NotImplementedError()
@@ -259,12 +259,12 @@ class PolicyController(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def has_available_worker(self, capabilities: Optional[Dict[str, int]] = None) -> bool:
+    def has_available_worker(self, capabilities: Optional[dict[str, int]] = None) -> bool:
         """has available worker or not, possibly constrained to the requested task capabilities"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def statistics(self) -> Dict:
+    def statistics(self) -> dict:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -272,13 +272,13 @@ class PolicyController(metaclass=abc.ABCMeta):
         self,
         information_snapshot: InformationSnapshot,
         worker_manager_heartbeat: WorkerManagerHeartbeat,
-        managed_worker_ids: List[WorkerID],
-        worker_manager_snapshots: Dict[bytes, WorkerManagerSnapshot],
-    ) -> List[WorkerManagerCommand]:
+        managed_worker_ids: list[WorkerID],
+        worker_manager_snapshots: dict[bytes, WorkerManagerSnapshot],
+    ) -> list[WorkerManagerCommand]:
         """Pure function: state in, commands out (a single declarative setDesiredTaskConcurrency)."""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_scaling_status(self, managed_workers: Dict[bytes, List[WorkerID]]) -> ScalingManagerStatus:
+    def get_scaling_status(self, managed_workers: dict[bytes, list[WorkerID]]) -> ScalingManagerStatus:
         """Pure function: state in, status out."""
         raise NotImplementedError()

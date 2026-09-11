@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 from scaler.io.mixins import AsyncBinder, AsyncPublisher
 from scaler.protocol.capnp import (
@@ -38,9 +38,9 @@ class VanillaWorkerController(WorkerController, Looper, Reporter):
         self._binder_monitor: Optional[AsyncPublisher] = None
         self._task_controller: Optional[TaskController] = None
 
-        self._worker_alive_since: Dict[WorkerID, Tuple[float, WorkerHeartbeat]] = dict()
-        self._worker_to_manager: Dict[WorkerID, bytes] = dict()
-        self._manager_to_workers: Dict[bytes, Set[WorkerID]] = dict()
+        self._worker_alive_since: dict[WorkerID, tuple[float, WorkerHeartbeat]] = dict()
+        self._worker_to_manager: dict[WorkerID, bytes] = dict()
+        self._manager_to_workers: dict[bytes, set[WorkerID]] = dict()
         self._policy_controller = policy_controller
 
     def register(self, binder: AsyncBinder, binder_monitor: AsyncPublisher, task_controller: TaskController) -> None:
@@ -120,7 +120,7 @@ class VanillaWorkerController(WorkerController, Looper, Reporter):
 
     @staticmethod
     def __worker_status_from_heartbeat(
-        worker_id: WorkerID, worker_task_numbers: Dict, last: float, info: WorkerHeartbeat
+        worker_id: WorkerID, worker_task_numbers: dict, last: float, info: WorkerHeartbeat
     ) -> WorkerStatus:
         current_processor = next((p for p in info.processors if not p.suspended), None)
         suspended = min(len([p for p in info.processors if p.suspended]), UINT8_MAX)
@@ -161,10 +161,10 @@ class VanillaWorkerController(WorkerController, Looper, Reporter):
     def get_worker_by_task_id(self, task_id: TaskID) -> WorkerID:
         return self._policy_controller.get_worker_by_task_id(task_id)
 
-    def get_worker_ids(self) -> Set[WorkerID]:
+    def get_worker_ids(self) -> set[WorkerID]:
         return self._policy_controller.get_worker_ids()
 
-    def get_workers_by_manager_id(self, manager_id: bytes) -> List[WorkerID]:
+    def get_workers_by_manager_id(self, manager_id: bytes) -> list[WorkerID]:
         return list(self._manager_to_workers.get(manager_id, set()))
 
     async def __clean_workers(self) -> None:

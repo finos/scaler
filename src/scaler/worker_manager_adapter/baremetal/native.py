@@ -6,7 +6,7 @@ import os
 import signal
 import sys
 import uuid
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 import psutil
 
@@ -54,7 +54,7 @@ class NativeWorkerProvisioner(DeclarativeWorkerProvisioner):
         else:
             raise ValueError(f"worker_type is not set and mode is unrecognised: {config.mode!r}")
 
-        self._workers: List[Worker] = []
+        self._workers: list[Worker] = []
         self._capacity_coordinator = CapacityCoordinator(
             start_units=self.start_units,
             stop_units=self.stop_units,
@@ -86,7 +86,7 @@ class NativeWorkerProvisioner(DeclarativeWorkerProvisioner):
         )
 
     def run_fixed(self) -> None:
-        workers: List[Worker] = []
+        workers: list[Worker] = []
         for _ in range(self._max_task_concurrency):
             worker = self._create_worker()
             worker.start()
@@ -126,7 +126,7 @@ class NativeWorkerProvisioner(DeclarativeWorkerProvisioner):
                     )
 
     async def set_desired_task_concurrency(
-        self, requests: List[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
+        self, requests: list[WorkerManagerCommand.DesiredTaskConcurrencyRequest]
     ) -> None:
         task_concurrency = extract_desired_count(requests, self._capabilities)
         await self._capacity_coordinator.set_desired_unit_count(task_concurrency)

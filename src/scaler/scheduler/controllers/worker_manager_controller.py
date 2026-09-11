@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from scaler.config.defaults import DEFAULT_WORKER_MANAGER_TIMEOUT_SECONDS
 from scaler.io.mixins import AsyncBinder
@@ -34,14 +34,14 @@ class WorkerManagerController(Looper, Reporter):
         self._worker_controller: Optional[WorkerController] = None
 
         # Track worker manager heartbeats: source -> (last_seen_time, heartbeat)
-        self._manager_alive_since: Dict[bytes, Tuple[float, WorkerManagerHeartbeat]] = {}
+        self._manager_alive_since: dict[bytes, tuple[float, WorkerManagerHeartbeat]] = {}
 
         # Reverse map: worker_manager_id -> source (for duplicate detection)
-        self._manager_id_to_source: Dict[bytes, bytes] = {}
+        self._manager_id_to_source: dict[bytes, bytes] = {}
 
         # Per-manager total desired worker count from the latest setDesiredTaskConcurrency command.
         # Used to report pendingWorkers = max(0, last_desired - connected_count) to the monitor.
-        self._last_desired_total: Dict[bytes, int] = {}
+        self._last_desired_total: dict[bytes, int] = {}
 
     def register(self, binder: AsyncBinder, task_controller: TaskController, worker_controller: WorkerController):
         self._binder = binder
@@ -106,9 +106,9 @@ class WorkerManagerController(Looper, Reporter):
 
         return build_scaling_manager_status(managed_workers, details)
 
-    def get_managed_workers(self) -> Dict[bytes, List[WorkerID]]:
+    def get_managed_workers(self) -> dict[bytes, list[WorkerID]]:
         """Return managed workers keyed by worker_manager_id (from heartbeat)."""
-        result: Dict[bytes, List[WorkerID]] = {}
+        result: dict[bytes, list[WorkerID]] = {}
         for source, (_, heartbeat) in self._manager_alive_since.items():
             manager_id = heartbeat.workerManagerID
             result[manager_id] = self._worker_controller.get_workers_by_manager_id(manager_id)
@@ -117,9 +117,9 @@ class WorkerManagerController(Looper, Reporter):
     async def _send_command(self, source: bytes, command: WorkerManagerCommand):
         await self._binder.send(source, command, detached=True)
 
-    def _build_manager_snapshots(self) -> Dict[bytes, WorkerManagerSnapshot]:
+    def _build_manager_snapshots(self) -> dict[bytes, WorkerManagerSnapshot]:
         """Build cross-manager snapshots from all known managers, keyed by worker_manager_id."""
-        snapshots: Dict[bytes, WorkerManagerSnapshot] = {}
+        snapshots: dict[bytes, WorkerManagerSnapshot] = {}
         for source, (last_seen, heartbeat) in self._manager_alive_since.items():
             manager_id = heartbeat.workerManagerID
             worker_count = len(self._worker_controller.get_workers_by_manager_id(manager_id))
@@ -168,7 +168,7 @@ class WorkerManagerController(Looper, Reporter):
         self._last_desired_total.pop(source, None)
 
 
-def _sum_desired_for_manager(commands: List[WorkerManagerCommand], manager_capabilities: Dict[str, int]) -> int:
+def _sum_desired_for_manager(commands: list[WorkerManagerCommand], manager_capabilities: dict[str, int]) -> int:
     """Sum taskConcurrency across requests whose capability set is a subset of the manager's capabilities.
 
     Mirrors the rule the worker manager itself applies to translate the declarative command into a

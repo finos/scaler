@@ -1,5 +1,5 @@
 import dataclasses
-from typing import ClassVar, List, Optional
+from typing import ClassVar, Optional
 
 from scaler.config.common.logging import LoggingConfig
 from scaler.config.common.worker import WorkerConfig
@@ -24,7 +24,7 @@ class ECSWorkerManagerConfig(ConfigClass):
         default=None, metadata=dict(env_var="AWS_SECRET_ACCESS_KEY", help="AWS secret access key")
     )
     aws_region: str = dataclasses.field(default="us-east-1", metadata=dict(help="AWS region for ECS cluster"))
-    ecs_subnets: List[str] = dataclasses.field(
+    ecs_subnets: list[str] = dataclasses.field(
         default_factory=list,
         metadata=dict(
             type=lambda s: [x for x in s.split(",") if x],

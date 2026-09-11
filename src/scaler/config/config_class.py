@@ -1,7 +1,7 @@
 import argparse
 import dataclasses
 import sys
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
 import argcomplete
 
@@ -147,7 +147,7 @@ class ConfigClass:
     ## Section Fields
 
     A field with `section="<toml_section>"` in its metadata is populated from the TOML file only
-    (no CLI argument). The field type may be `Optional[SomeConfigClass]` or `List[SomeConfigClass]`.
+    (no CLI argument). The field type may be `Optional[SomeConfigClass]` or `list[SomeConfigClass]`.
 
     ## Composition
 
@@ -183,7 +183,7 @@ class ConfigClass:
     - `bool`: parses from "true" and "false", and all upper/lower case variants
     - subclasses of `ConfigType`: uses the `.from_string()` method
     - `Optional[T]`, `T | None`: parsed as `T` and sets `required=False`
-    - `List[T]`, `list[T]`: parsed as `T`, and sets `nargs="*"`
+    - `list[T]`, `list[T]`: parsed as `T`, and sets `nargs="*"`
     - sublcasses of `enum.Enum`: values are parsed by name
 
     For generic types, the `T` is parsed recursively following the rules here.
@@ -205,13 +205,13 @@ class ConfigClass:
     my_field: MyConfigType
 
     # this requires special handling
-    tuples: Tuple[int, ...] = dataclasses.field(metadata=dict(type=int, nargs="*"))
+    tuples: tuple[int, ...] = dataclasses.field(metadata=dict(type=int, nargs="*"))
 
     # works automatically, defaults to `nargs="*"`
-    integers: List[int]
+    integers: list[int]
 
     # ... but we can override that
-    integers2: List[int] = dataclasses.field(metadata=dict(nargs="+"))
+    integers2: list[int] = dataclasses.field(metadata=dict(nargs="+"))
 
     # this will automatically have `required=False` set
     maybe: Optional[str]
@@ -264,7 +264,7 @@ class ConfigClass:
             parser.add_argument(*args, **kwargs)
 
     @classmethod
-    def parse(cls: Type[T], program_name: str, section: str, disable_config_flag: bool = False) -> T:
+    def parse(cls: type[T], program_name: str, section: str, disable_config_flag: bool = False) -> T:
         subcommand_fields = [
             field for field in dataclasses.fields(cls) if "subcommand" in field.metadata  # type: ignore[arg-type]
         ]
@@ -298,8 +298,8 @@ class ConfigClass:
         config_path_str: Optional[str] = vars(parser.parse_known_args()[0]).get("config")
 
         # Load TOML and inject section values as defaults (below CLI, above hardcoded).
-        toml_data: Dict[str, Any] = {}  # type: ignore[no-redef]
-        injected_dests: Dict[str, Any] = {}
+        toml_data: dict[str, Any] = {}  # type: ignore[no-redef]
+        injected_dests: dict[str, Any] = {}
         if config_path_str:
             toml_data = _load_toml(config_path_str)
             toml_defs = _toml_section_defaults(toml_data.get(section, {}), cls)
@@ -333,7 +333,7 @@ class ConfigClass:
 
     @classmethod
     def parse_with_section(
-        cls: Type[T], program_name: str, section_data: Dict[str, Any], argv: Optional[List[str]] = None
+        cls: type[T], program_name: str, section_data: dict[str, Any], argv: Optional[list[str]] = None
     ) -> T:
         """Parse CLI args using section_data as pre-loaded TOML defaults.
 
@@ -350,7 +350,7 @@ class ConfigClass:
         argcomplete.autocomplete(parser)
 
         toml_defs = _toml_section_defaults(section_data, cls)
-        injected_dests: Dict[str, Any] = {}
+        injected_dests: dict[str, Any] = {}
         if toml_defs:
             parser.set_defaults(**toml_defs)
             injected_dests.update(toml_defs)
@@ -372,9 +372,9 @@ def _build_subparser_tree(
     cls: type,
     parser: argparse.ArgumentParser,
     parent_cls: type,
-    sections: List[str],
+    sections: list[str],
     dest: str,
-    toml_data: Dict[str, Any],
+    toml_data: dict[str, Any],
 ) -> None:
     """Recursively add subparsers to *parser* for every subcommand field in *cls*.
 
@@ -404,11 +404,11 @@ def _build_subparser_tree(
         config_cls.configure_parser(subparser)  # type: ignore[union-attr]  # this sub-command's own fields
 
         # Inject TOML defaults: merge all ancestor sections + this sub-command's section.
-        combined: Dict[str, Any] = {}
+        combined: dict[str, Any] = {}
         for s in level_sections:
             combined.update(toml_data.get(s, {}))
         toml_defs = _toml_section_defaults(combined, config_cls)  # type: ignore[arg-type]
-        injected_dests: Dict[str, Any] = {}
+        injected_dests: dict[str, Any] = {}
         if toml_defs:
             subparser.set_defaults(**toml_defs)
             injected_dests.update(toml_defs)

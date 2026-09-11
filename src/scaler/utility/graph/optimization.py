@@ -1,10 +1,10 @@
 from collections import deque
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Union
 
 
 def cull_graph(
-    graph: Dict[str, Tuple[Union[Callable, Any], ...]], keys: List[str]
-) -> Dict[str, Tuple[Union[Callable, Any], ...]]:
+    graph: dict[str, tuple[Union[Callable, Any], ...]], keys: list[str]
+) -> dict[str, tuple[Union[Callable, Any], ...]]:
     queue = deque(keys)
     visited = set()
     for target_key in keys:

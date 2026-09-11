@@ -6,7 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
-from typing import List, Optional, Set, Tuple
+from typing import Optional
 
 import psutil
 
@@ -19,7 +19,7 @@ SHUTDOWN_TIMEOUT_SECONDS = 30
 DESCENDANT_EXIT_TIMEOUT_SECONDS = 15
 
 
-def _pick_cluster_ports() -> Tuple[int, int, int]:
+def _pick_cluster_ports() -> tuple[int, int, int]:
     """Pick a scheduler, monitor and object storage port that do not collide with each other.
 
     The monitor port is set explicitly because the scheduler otherwise binds scheduler port + 2
@@ -32,7 +32,7 @@ def _pick_cluster_ports() -> Tuple[int, int, int]:
             return scheduler_port, monitor_port, object_storage_port
 
 
-def _ports_listening(ports: Set[int]) -> Set[int]:
+def _ports_listening(ports: set[int]) -> set[int]:
     """Return the subset of loopback ports currently accepting TCP connections.
 
     Probes with an actual connection (as ObjectStorageServerProcess.wait_until_ready does)
@@ -132,13 +132,13 @@ max_task_concurrency = 1
         listening = _ports_listening(self._ports)
         self.fail(f"cluster did not start within {STARTUP_TIMEOUT_SECONDS}s; listening: {listening}")
 
-    def _descendants(self, process: subprocess.Popen) -> List[psutil.Process]:
+    def _descendants(self, process: subprocess.Popen) -> list[psutil.Process]:
         try:
             return psutil.Process(process.pid).children(recursive=True)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             return []
 
-    def _assert_clean_exit(self, process: subprocess.Popen, descendants: List[psutil.Process]) -> None:
+    def _assert_clean_exit(self, process: subprocess.Popen, descendants: list[psutil.Process]) -> None:
         try:
             process.wait(timeout=SHUTDOWN_TIMEOUT_SECONDS)
         except subprocess.TimeoutExpired:

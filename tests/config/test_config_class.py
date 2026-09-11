@@ -1,7 +1,7 @@
 import dataclasses
 import unittest
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 from unittest.mock import mock_open, patch
 
 from scaler.config.config_class import ConfigClass
@@ -22,7 +22,7 @@ except ImportError:
 
 
 class MockArgParser:
-    args: List[Tuple[Tuple, Dict]]
+    args: list[tuple[tuple, dict]]
 
     def __init__(self, *args, **kwargs) -> None:
         self.args = []
@@ -67,8 +67,8 @@ class TestConfigClass(unittest.TestCase):
             a_bool: bool
             flag: bool = dataclasses.field(metadata=dict(action="store_true"))
 
-            list_one: List[int]
-            list_two: List[int] = dataclasses.field(metadata=dict(nargs="+"))
+            list_one: list[int]
+            list_two: list[int] = dataclasses.field(metadata=dict(nargs="+"))
 
             custom_type: int = dataclasses.field(metadata=dict(type=parse_hex))
 

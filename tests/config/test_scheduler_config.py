@@ -1,12 +1,12 @@
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 from scaler.config.section.scheduler import SchedulerConfig
 from scaler.config.types.address import AddressConfig
 
 
 def _config(**overrides: Any) -> SchedulerConfig:
-    kwargs: Dict[str, Any] = dict(
+    kwargs: dict[str, Any] = dict(
         bind_address=AddressConfig.from_string("tcp://127.0.0.1:0"),
         object_storage_address=AddressConfig.from_string("tcp://127.0.0.1:0"),
     )

@@ -1,7 +1,7 @@
 # PYTHON_ARGCOMPLETE_OK
 import argparse
 import sys
-from typing import Any, Dict, Type, Union, cast
+from typing import Any, Union, cast
 
 import argcomplete
 
@@ -27,7 +27,7 @@ _AnyWorkerManagerConfig = Union[
     OCIHPCWorkerManagerConfig,
 ]
 
-_TYPE_MAP: Dict[str, Type[ConfigClass]] = {
+_TYPE_MAP: dict[str, type[ConfigClass]] = {
     NativeWorkerManagerConfig._tag: NativeWorkerManagerConfig,
     SymphonyWorkerManagerConfig._tag: SymphonyWorkerManagerConfig,
     ECSWorkerManagerConfig._tag: ECSWorkerManagerConfig,
@@ -64,7 +64,7 @@ def main() -> None:
         sys.exit(1)
 
     # Load TOML and find the matching [[worker_manager]] entry.
-    section_data: Dict[str, Any] = {}
+    section_data: dict[str, Any] = {}
     if pre_args.config:
         toml_data = _load_toml(pre_args.config)
         entries = toml_data.get("worker_manager", [])

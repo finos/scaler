@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from scaler.config.section.scheduler import SchedulerConfig
 from scaler.scheduler.controllers.mixins import ConfigController
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class VanillaConfigController(ConfigController):
     def __init__(self, config: SchedulerConfig):
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
 
         for key, value in config.__dict__.items():
             self.update_config(key, value)

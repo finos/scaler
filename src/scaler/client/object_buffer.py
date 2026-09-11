@@ -4,7 +4,7 @@ import dataclasses
 import hashlib
 import pickle
 import weakref
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Optional
 
 import cloudpickle
 
@@ -34,8 +34,8 @@ class ObjectBuffer:
         self._connector_agent = connector_agent
         self._bridge = bridge
 
-        self._valid_object_ids: Set[ObjectID] = set()
-        self._pending_objects: List[ObjectCache] = list()
+        self._valid_object_ids: set[ObjectID] = set()
+        self._pending_objects: list[ObjectCache] = list()
 
         # Two dedup layers so data handed to many tasks (across separate submit() / map() /
         # get() calls) is serialized and uploaded once:
@@ -48,9 +48,9 @@ class ObjectBuffer:
         #    from content, so an ID minted after clear() can't collide with one a concurrent
         #    clear()-driven delete is removing.
         self._dedup_alive: "weakref.WeakValueDictionary[int, Any]" = weakref.WeakValueDictionary()
-        self._dedup_cache: Dict[int, ObjectCache] = {}
-        self._cycle_dedup_cache: Dict[int, ObjectCache] = {}
-        self._payload_hash_to_object_id: Dict[bytes, ObjectID] = {}
+        self._dedup_cache: dict[int, ObjectCache] = {}
+        self._cycle_dedup_cache: dict[int, ObjectCache] = {}
+        self._payload_hash_to_object_id: dict[bytes, ObjectID] = {}
 
         self._serializer_object_id = self.__send_serializer()
 

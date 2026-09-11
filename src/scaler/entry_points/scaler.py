@@ -5,7 +5,7 @@ import multiprocessing.connection
 import signal
 import sys
 import time
-from typing import List, Optional, cast
+from typing import Optional, cast
 
 import psutil
 
@@ -34,7 +34,7 @@ class ScalerAllConfig(ConfigClass):
         default=None, metadata=dict(section="object_storage_server")
     )
     scheduler: Optional[SchedulerConfig] = dataclasses.field(default=None, metadata=dict(section="scheduler"))
-    worker_managers: List[WorkerManagerUnion] = dataclasses.field(
+    worker_managers: list[WorkerManagerUnion] = dataclasses.field(
         default_factory=list, metadata=dict(section="worker_manager", discriminator="type")
     )
     gui: Optional[WebGUIConfig] = dataclasses.field(default=None, metadata=dict(section="gui"))
@@ -97,7 +97,7 @@ SHUTDOWN_JOIN_TIMEOUT_SECONDS = 10
 FORCE_KILL_JOIN_TIMEOUT_SECONDS = 5
 
 
-def _shutdown_processes(processes: List[multiprocessing.Process]) -> None:
+def _shutdown_processes(processes: list[multiprocessing.Process]) -> None:
     """Terminate the started child processes, then force-kill anything that did not exit in time.
 
     Children are terminated in reverse startup order (workers before the scheduler, the scheduler
@@ -109,7 +109,7 @@ def _shutdown_processes(processes: List[multiprocessing.Process]) -> None:
 
     started = [process for process in processes if process.pid is not None]
 
-    descendants: List[psutil.Process] = []
+    descendants: list[psutil.Process] = []
     for process in started:
         try:
             descendants.extend(psutil.Process(process.pid).children(recursive=True))
@@ -166,7 +166,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
 
     _spawn_process = multiprocessing.get_context("spawn").Process
-    processes: List[multiprocessing.Process] = []
+    processes: list[multiprocessing.Process] = []
 
     exit_code = 0
     try:

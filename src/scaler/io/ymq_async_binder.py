@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Awaitable, Callable, Dict, Optional, Set
+from typing import Awaitable, Callable, Optional
 
 from scaler.config.common.security import SecurityConfig
 from scaler.config.types.address import AddressConfig
@@ -24,10 +24,10 @@ class YMQAsyncBinder(AsyncBinder):
 
         self._callback: Callable[[bytes, BaseMessage], Awaitable[None]] = callback
 
-        self._received: Dict[str, int] = defaultdict(lambda: 0)
-        self._sent: Dict[str, int] = defaultdict(lambda: 0)
+        self._received: dict[str, int] = defaultdict(lambda: 0)
+        self._sent: dict[str, int] = defaultdict(lambda: 0)
 
-        self._pending_tasks: Set[asyncio.Task] = set()
+        self._pending_tasks: set[asyncio.Task] = set()
 
     def __del__(self):
         self.destroy()
