@@ -19,7 +19,7 @@ from scaler.utility.exceptions import DisconnectedError, MissingObjects, Process
 from scaler.utility.logging.scoped_logger import ScopedLogger
 from scaler.utility.logging.utility import setup_logger
 from scaler.worker.preload import PreloadSpecError, _parse_preload_spec, execute_preload
-from scaler.worker_manager_adapter.baremetal.native import NativeWorkerManager
+from scaler.worker_manager.native.worker_manager import NativeWorkerManager
 from tests.utility.utility import logging_test_name
 
 

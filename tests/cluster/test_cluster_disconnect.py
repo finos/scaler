@@ -15,7 +15,7 @@ from scaler.config.section.native_worker_manager import NativeWorkerManagerConfi
 from scaler.config.types.worker import WorkerCapabilities
 from scaler.utility.exceptions import DisconnectedError
 from scaler.utility.logging.utility import setup_logger
-from scaler.worker_manager_adapter.baremetal.native import NativeWorkerManager
+from scaler.worker_manager.native.worker_manager import NativeWorkerManager
 from tests.utility.utility import logging_test_name
 
 # The task has to still be running when its worker is interrupted, so it must outlast the pause
