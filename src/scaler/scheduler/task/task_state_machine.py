@@ -9,6 +9,7 @@ TERMINAL_TASK_STATES = (
     TaskState.failedWorkerDied,
     TaskState.canceled,
     TaskState.canceledNotFound,
+    TaskState.failedSchedulerFault,
 )
 
 

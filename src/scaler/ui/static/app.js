@@ -728,6 +728,11 @@ function renderStreamStatic() {
     canceled.innerHTML = '<span class="legend-swatch pattern-slash"></span> Canceled';
     streamLegend.appendChild(canceled);
 
+    var schedulerFault = document.createElement("span");
+    schedulerFault.className = "legend-item";
+    schedulerFault.innerHTML = '<span class="legend-swatch pattern-grid"></span> Scheduler fault';
+    streamLegend.appendChild(schedulerFault);
+
     // Capability legend (with separator)
     if (legend.length > 0) {
         var sep2 = document.createElement("span");
@@ -863,6 +868,8 @@ function drawTaskStream() {
         drawBarFill(bar, g);
         if (bar.p === "x") {
             drawCrossHatch(streamCtx, g.x, g.y, g.w, g.h);
+        } else if (bar.p === "+") {
+            drawGridHatch(streamCtx, g.x, g.y, g.w, g.h);
         }
         if (bar.ow > 0) {
             streamCtx.strokeStyle = bar.oc;
@@ -904,6 +911,29 @@ function drawCrossHatch(ctx, x, y, w, h) {
         ctx.beginPath();
         ctx.moveTo(x + i + h, y);
         ctx.lineTo(x + i, y + h);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function drawGridHatch(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.lineWidth = 1;
+    var step = 6;
+    for (var i = 0; i < w; i += step) {
+        ctx.beginPath();
+        ctx.moveTo(x + i, y);
+        ctx.lineTo(x + i, y + h);
+        ctx.stroke();
+    }
+    for (var j = 0; j < h; j += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, y + j);
+        ctx.lineTo(x + w, y + j);
         ctx.stroke();
     }
     ctx.restore();

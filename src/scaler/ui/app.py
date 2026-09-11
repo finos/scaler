@@ -43,6 +43,7 @@ COMPLETED_TASK_STATUSES = (
     TaskState.canceledNotFound,
     TaskState.failed,
     TaskState.failedWorkerDied,
+    TaskState.failedSchedulerFault,
 )
 
 SLIDING_WINDOW_OPTIONS = {
@@ -403,6 +404,10 @@ class TaskStreamState:
         outline_width = 1
         if task_state in (TaskState.failed, TaskState.failedWorkerDied):
             pattern = "x"
+            outline_color = "red"
+        elif task_state == TaskState.failedSchedulerFault:
+            # a fault of the scheduler itself, drawn apart from a task that raised
+            pattern = "+"
             outline_color = "red"
         elif task_state in (TaskState.canceled, TaskState.canceledNotFound):
             pattern = "/"

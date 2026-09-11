@@ -41,6 +41,7 @@ class TaskState(IntEnum):
     failedWorkerDied = 6
     canceled = 7
     canceledNotFound = 8
+    failedSchedulerFault = 9
 
 class WorkerState(IntEnum):
     connected = 0

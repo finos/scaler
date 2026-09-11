@@ -345,6 +345,14 @@ th.sort-desc::after {
     );
 }
 
+.legend-swatch.pattern-grid {
+    background: repeating-linear-gradient(
+        0deg, transparent, transparent 3px, #333 3px, #333 4px
+    ), repeating-linear-gradient(
+        90deg, transparent, transparent 3px, #333 3px, #333 4px
+    );
+}
+
 /* Task Stream */
 .stream-container {
     overflow-y: auto;

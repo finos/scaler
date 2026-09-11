@@ -25,6 +25,7 @@ enum TaskState {
     failedWorkerDied @6;
     canceled @7;
     canceledNotFound @8;
+    failedSchedulerFault @9;  # a scheduler transition action raised, the client is sent a failed result
 }
 
 enum WorkerState {

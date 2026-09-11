@@ -111,7 +111,9 @@ class TestTaskStateGraph(unittest.IsolatedAsyncioTestCase):
                     reachable.add(target_name)
                     pending.append(target_name)
 
-        self.assertEqual(reachable, {state.name for state in TaskState})
+        # failedSchedulerFault is not an edge of the graph: it is committed by the router's except path, which no
+        # (state, event) pair can drive, so it is reachable from every live state rather than from a listed target
+        self.assertEqual(reachable, {state.name for state in TaskState} - {TaskState.failedSchedulerFault.name})
 
     def test_every_live_state_reaches_a_terminal_state(self):
         edges = self.__snapshot_edges()
@@ -521,6 +523,16 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
         payload = self.harness.connector_storage.set_object.await_args.args[1]
         self.assertIsInstance(deserialize_failure(payload), SchedulerError)
 
+    async def test_a_faulted_task_is_reported_to_the_monitor_as_a_scheduler_fault(self):
+        """The client sees an ordinary failure, the monitor must see that the scheduler is the one that failed."""
+
+        await self.harness.enter_state(TaskState.canceling)
+        self.harness.worker_controller.on_task_done.side_effect = RuntimeError("the action failed")
+
+        await self.harness.controller.on_task_cancel_confirm(make_task_cancel_confirm(TaskCancelConfirmType.canceled))
+
+        self.assertEqual(self.harness.monitored_task_states(), [TaskState.failedSchedulerFault])
+
     async def test_a_faulted_teardown_still_does_not_escape_the_router(self):
         """The teardown runs from the router's except, so its own failure must not propagate either."""
 
@@ -566,7 +578,8 @@ class TestTaskControllerBehavior(unittest.IsolatedAsyncioTestCase):
 
         statistics = self.harness.controller._task_state_manager.get_statistics()
         self.assertEqual(statistics[TaskState.canceling], 0, "the source state must not leak a count")
-        self.assertEqual(statistics[TaskState.failed], 1, "the task is counted where the client was told it landed")
+        self.assertEqual(statistics[TaskState.failedSchedulerFault], 1, "the fault is counted as the scheduler's own")
+        self.assertEqual(statistics[TaskState.failed], 0, "a fault must not be counted as a task that raised")
 
 
 class TestTaskStateExclusion(unittest.IsolatedAsyncioTestCase):
